@@ -2,6 +2,29 @@ import torch
 from torch import nn as nn, Tensor, Size
 
 
+def scramble_activation(
+    tensor: Tensor, scramble: bool, scramble_distance: float
+) -> Tensor:
+    """
+    Custom activation function with optional scrambling.
+    Args:
+        tensor (Tensor): Input tensor.
+        scramble (bool): Whether to apply scrambling.
+        scramble_distance (float): Magnitude of scrambling.
+
+    Returns:
+        Tensor: Transformed tensor.
+    """
+    # Scramble the tensor if enabled
+    if scramble:
+        tensor = tensor + (
+            scramble_distance * random_plus_or_minus(tensor.size()).to(tensor.device)
+        )
+
+    # Apply the activation function (sigmoid scaled to [-1, 1])
+    return 2 * torch.sigmoid(tensor) - 1
+
+
 class ScrambleLayer(nn.Linear):
     scramble: bool
     scramble_distance: float
@@ -44,14 +67,13 @@ def random_plus_or_minus(size: Size) -> Tensor:
 
 
 class OneScrambleLayerNN(nn.Module):
-    def __init__(self, input_size: int, output_size: int, scramble_distance: float) -> None:
+    def __init__(
+        self, input_size: int, output_size: int, scramble_distance: float
+    ) -> None:
         super(OneScrambleLayerNN, self).__init__()
         hidden_size: int = 20
         self.layer1 = ScrambleLayer(scramble_distance, input_size, hidden_size)
-        self.layer2 = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.Sigmoid()
-        )
+        self.layer2 = nn.Sequential(nn.Linear(hidden_size, hidden_size), nn.Sigmoid())
         self.fc2 = nn.Linear(hidden_size, output_size)
 
     def train_mode(self) -> None:
@@ -65,9 +87,10 @@ class OneScrambleLayerNN(nn.Module):
         return x
 
 
-
 class SimpleNN(nn.Module):
-    def __init__(self, input_size: int, output_size: int, scramble_distance: float) -> None:
+    def __init__(
+        self, input_size: int, output_size: int, scramble_distance: float
+    ) -> None:
         super(SimpleNN, self).__init__()
         hidden_size: int = 20
         self.layer1 = ScrambleLayer(scramble_distance, input_size, hidden_size)

@@ -7,4 +7,5 @@ class Settings(BaseSettings):
     data_path: Path = root_path / "data"
     models_path: Path = data_path / "models"
 
+
 settings = Settings()
