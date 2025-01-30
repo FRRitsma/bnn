@@ -3,15 +3,15 @@ from pathlib import Path
 import torch
 
 from settings import settings
-from src.model import SimpleNN
+from src.improved_model import SimpleCNN
 
 
-def save_model(model: SimpleNN, name: str) -> None:
+def save_model(model: SimpleCNN, name: str) -> None:
     path: Path = settings.models_path / f"{name}.pth"
     torch.save(model.state_dict(), path)
 
 
 def load_model(name: str) -> None:
     path: Path = settings.models_path / f"{name}.pth"
-    model = SimpleNN(784, 10, 2.0)
+    model = SimpleCNN(0.0)
     model.load_state_dict(torch.load(path))

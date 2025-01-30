@@ -20,9 +20,10 @@ def scramble_activation(
         tensor = tensor + (
             scramble_distance * random_plus_or_minus(tensor.size()).to(tensor.device)
         )
-
-    # Apply the activation function (sigmoid scaled to [-1, 1])
-    return 2 * torch.sigmoid(tensor) - 1
+        # Apply the activation function (sigmoid scaled to [-1, 1])
+        return 2 * torch.sigmoid(tensor) - 1
+    else:
+        return torch.sign(tensor)
 
 
 class ScrambleLayer(nn.Linear):

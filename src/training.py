@@ -7,7 +7,8 @@ from src.utils import device
 
 
 def get_accuracy(model: SimpleNN, dataloader: DataLoader) -> float:
-    model.eval_mode()
+    scramble_distance = model.scramble_distance
+    model.scramble_distance = 0.0
     with torch.no_grad():  # Disable gradient computation
         all_correct: int = 0
         for inputs, labels in dataloader:
@@ -19,7 +20,7 @@ def get_accuracy(model: SimpleNN, dataloader: DataLoader) -> float:
             )
             all_correct += sum(comparison)
         accuracy: float = all_correct / len(dataloader.dataset)
-    model.train_mode()
+    model.scramble_distance = scramble_distance
     return accuracy
 
 
