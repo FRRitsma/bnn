@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from src.improved_model import CNN_2
+from src.improved_model import BinarizingCNN
 from src.utils import device
 
 # tolerance: float = float(1e-4)
@@ -10,7 +10,7 @@ from src.utils import device
 
 
 def get_intermediate_outputs_as_numpy(
-    model: CNN_2, data_loader: DataLoader
+    model: BinarizingCNN, data_loader: DataLoader
 ) -> np.ndarray:
     model.eval_mode()
     all_outputs: list[np.ndarray] = []

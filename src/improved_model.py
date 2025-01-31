@@ -53,7 +53,7 @@ class BinarizingNetwork:
                 attribute.set_scramble_distance(self.scramble_distance)
 
 
-class CustomLinear(nn.Linear, BinarizingNetwork):
+class BinarizingLinear(nn.Linear, BinarizingNetwork):
     def __init__(self, in_features, out_features, scramble_distance: float = 0):
         nn.Linear.__init__(self, in_features, out_features)
         BinarizingNetwork.__init__(self, scramble_distance)
@@ -77,7 +77,7 @@ class CustomLinear(nn.Linear, BinarizingNetwork):
         return output
 
 
-class CNN_2(nn.Module, BinarizingNetwork):
+class BinarizingCNN(nn.Module, BinarizingNetwork):
     def __init__(self):
         nn.Module.__init__(self)
         BinarizingNetwork.__init__(self)
@@ -88,7 +88,7 @@ class CNN_2(nn.Module, BinarizingNetwork):
         # Flatten layer
         self.flatten = nn.Flatten()
         # A fully connected layer
-        self.layer2 = CustomLinear(OUT_CHANNELS * 36, 77)
+        self.layer2 = BinarizingLinear(OUT_CHANNELS * 36, 77)
         self.layer3 = nn.Linear(77, 10)
 
     def float_to_binary_layer(self, x):
