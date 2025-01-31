@@ -10,6 +10,7 @@ OUT_CHANNELS: int = 8
 class ModelMode(Enum):
     train = auto()
     evaluation = auto()
+    binarized = auto()
 
 
 class BinarizingNetwork:
@@ -111,10 +112,13 @@ def binarizing_activation(
     # Scramble the tensor if enabled
     match model_mode:
         case ModelMode.train:
-            tensor = tensor + (scramble_distance * random_plus_or_minus(tensor))
-            return scaled_sigmoid(tensor)
+            return scaled_sigmoid(
+                tensor + (scramble_distance * random_plus_or_minus(tensor))
+            )
         case ModelMode.evaluation:
-            torch.sign(tensor)
+            return torch.sign(tensor)
+        case ModelMode.binarized:
+            return torch.where(tensor >= 0, torch.tensor(1), torch.tensor(-1))
 
 
 def random_plus_or_minus(tensor: Tensor) -> Tensor:
