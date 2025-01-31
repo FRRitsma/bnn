@@ -37,3 +37,11 @@ def get_average_separation(test_data, model) -> float:
         intermediate_output = intermediate_layer[:, i].tolist()
         all_quantiles.append(get_quantile_of_separation(intermediate_output, 0.05))
     return np.mean(all_quantiles)
+
+
+class OneHotEncode:
+    def __init__(self, num_classes):
+        self.num_classes = num_classes
+
+    def __call__(self, label):
+        return torch.eye(self.num_classes)[label]

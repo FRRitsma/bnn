@@ -2,9 +2,9 @@ from enum import Enum, auto
 
 import torch
 import torch.nn as nn
-from torch import sigmoid, sign
+from torch import sigmoid
 
-from src.model import scramble_activation
+from src.model import binarizing_activation
 
 OUT_CHANNELS: int = 8
 
@@ -60,12 +60,9 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
 
     @property
     def transformed_weight(self):
-        if self.scramble:
-            return scramble_activation(
-                self.weight, self.scramble, self.scramble_distance
-            )
-        else:
-            return sign(self.weight)
+        return binarizing_activation(
+            self.weight, self.model_mode, self.scramble_distance
+        )
 
     def forward(self, x):
         output = torch.matmul(x, self.transformed_weight.t()) + self.bias
@@ -88,60 +85,21 @@ class BinarizingCNN(nn.Module, BinarizingNetwork):
         self.layer3 = BinarizingLinear(77, 10)
 
     def float_to_binary_layer(self, x):
-        y = scramble_activation(self.layer1(x), self.scramble, self.scramble_distance)
-        y = self.flatten(y)
-        return y
-
-    def second_layer(self, x):
-        y = scramble_activation(self.layer2(x), self.scramble, self.scramble_distance)
-        return y
-
-    def third_layer(self, x):
-        y = sigmoid(self.layer3(x))
-        return y
-
-    def forward(self, x):
-        y = self.float_to_binary_layer(x)
-        y = self.second_layer(y)
-        y = self.third_layer(y)
-        return y
-
-
-class SimpleCNN_1(nn.Module):
-    scramble: bool = True
-    scramble_distance: float
-
-    def train_mode(self):
-        self.scramble = True
-
-    def eval_mode(self):
-        self.scramble = False
-
-    def float_to_binary_layer(self, x):
-        y = scramble_activation(self.layer1(x), self.scramble, self.scramble_distance)
-        y = self.flatten(y)
-        return y
-
-    def second_layer(self, x):
-        y = scramble_activation(self.layer2(x), self.scramble, self.scramble_distance)
-        return y
-
-    def third_layer(self, x):
-        y = sigmoid(self.layer3(x))
-        return y
-
-    def __init__(self, scramble_distance: float = 2.0):
-        super(SimpleCNN_1, self).__init__()
-        self.scramble_distance = scramble_distance
-        # A single convolutional layer
-        self.layer1 = nn.Conv2d(
-            in_channels=1, out_channels=OUT_CHANNELS, kernel_size=5, stride=5, padding=1
+        y = binarizing_activation(
+            self.layer1(x), self.model_mode, self.scramble_distance
         )
-        # Flatten layer
-        self.flatten = nn.Flatten()
-        # A fully connected layer
-        self.layer2 = nn.Linear(OUT_CHANNELS * 36, 54)
-        self.layer3 = nn.Linear(54, 10)
+        y = self.flatten(y)
+        return y
+
+    def second_layer(self, x):
+        y = binarizing_activation(
+            self.layer2(x), self.model_mode, self.scramble_distance
+        )
+        return y
+
+    def third_layer(self, x):
+        y = sigmoid(self.layer3(x))
+        return y
 
     def forward(self, x):
         y = self.float_to_binary_layer(x)
