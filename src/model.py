@@ -2,6 +2,10 @@ import torch
 from torch import nn as nn, Tensor, Size
 
 
+def scaled_sigmoid(tensor: Tensor) -> Tensor:
+    return 2 * torch.sigmoid(tensor) - 1
+
+
 def scramble_activation(
     tensor: Tensor, scramble: bool, scramble_distance: float
 ) -> Tensor:
@@ -20,8 +24,7 @@ def scramble_activation(
         tensor = tensor + (
             scramble_distance * random_plus_or_minus(tensor.size()).to(tensor.device)
         )
-        # Apply the activation function (sigmoid scaled to [-1, 1])
-        return 2 * torch.sigmoid(tensor) - 1
+        return scaled_sigmoid(tensor)
     else:
         return torch.sign(tensor)
 
@@ -67,45 +70,5 @@ def random_plus_or_minus(size: Size) -> Tensor:
     return torch.randint(0, 2, size).float() * 2 - 1
 
 
-class OneScrambleLayerNN(nn.Module):
-    def __init__(
-        self, input_size: int, output_size: int, scramble_distance: float
-    ) -> None:
-        super(OneScrambleLayerNN, self).__init__()
-        hidden_size: int = 20
-        self.layer1 = ScrambleLayer(scramble_distance, input_size, hidden_size)
-        self.layer2 = nn.Sequential(nn.Linear(hidden_size, hidden_size), nn.Sigmoid())
-        self.fc2 = nn.Linear(hidden_size, output_size)
-
-    def train_mode(self) -> None:
-        self.layer1.train_mode()
-
-    def eval_mode(self) -> None:
-        self.layer1.eval_mode()
-
-    def forward(self, x):
-        x = self.fc2(self.layer2(self.layer1(x)))
-        return x
-
-
-class SimpleNN(nn.Module):
-    def __init__(
-        self, input_size: int, output_size: int, scramble_distance: float
-    ) -> None:
-        super(SimpleNN, self).__init__()
-        hidden_size: int = 20
-        self.layer1 = ScrambleLayer(scramble_distance, input_size, hidden_size)
-        self.layer2 = ScrambleLayer(scramble_distance, hidden_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, output_size)
-
-    def train_mode(self) -> None:
-        self.layer1.train_mode()
-        self.layer2.train_mode()
-
-    def eval_mode(self) -> None:
-        self.layer1.eval_mode()
-        self.layer2.eval_mode()
-
-    def forward(self, x):
-        x = self.fc2(self.layer2(self.layer1(x)))
-        return x
+def random_plus_or_zero(size: Size) -> Tensor:
+    return torch.randint(0, 1, size).float()

@@ -2,11 +2,11 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from src.model import SimpleNN
+from src.improved_model import CNN_2
 from src.utils import device
 
 
-def get_accuracy(model: SimpleNN, dataloader: DataLoader) -> float:
+def get_accuracy(model: CNN_2, dataloader: DataLoader) -> float:
     scramble_distance = model.scramble_distance
     model.scramble_distance = 0.0
     with torch.no_grad():  # Disable gradient computation
