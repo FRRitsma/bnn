@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch import sigmoid, sign
 
-from src.model import scramble_activation, scaled_sigmoid, random_plus_or_zero
+from src.model import scramble_activation
 
 OUT_CHANNELS: int = 8
 
@@ -61,11 +61,8 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
     @property
     def transformed_weight(self):
         if self.scramble:
-            return scaled_sigmoid(
-                self.weight
-                - self.scramble_distance
-                * sign(self.weight)
-                * random_plus_or_zero(self.weight)
+            return scramble_activation(
+                self.weight, self.scramble, self.scramble_distance
             )
         else:
             return sign(self.weight)
