@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch import sigmoid, sign
 
 from src.model import scramble_activation, scaled_sigmoid, random_plus_or_zero
-from src.utils import device
 
 OUT_CHANNELS: int = 8
 
@@ -66,7 +65,7 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
                 self.weight
                 - self.scramble_distance
                 * sign(self.weight)
-                * random_plus_or_zero(self.weight.size()).to(device)
+                * random_plus_or_zero(self.weight)
             )
         else:
             return sign(self.weight)
@@ -89,7 +88,7 @@ class BinarizingCNN(nn.Module, BinarizingNetwork):
         self.flatten = nn.Flatten()
         # A fully connected layer
         self.layer2 = BinarizingLinear(OUT_CHANNELS * 36, 77)
-        self.layer3 = nn.Linear(77, 10)
+        self.layer3 = BinarizingLinear(77, 10)
 
     def float_to_binary_layer(self, x):
         y = scramble_activation(self.layer1(x), self.scramble, self.scramble_distance)

@@ -7,7 +7,7 @@ from src.utils import device
 
 
 def get_accuracy(model: BinarizingCNN, dataloader: DataLoader) -> float:
-    scramble_distance = model.scramble_distance
+    scramble_distance: float = model.scramble_distance
     model.scramble_distance = 0.0
     with torch.no_grad():  # Disable gradient computation
         all_correct: int = 0
