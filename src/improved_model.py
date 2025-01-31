@@ -2,9 +2,7 @@ from enum import Enum, auto
 
 import torch
 import torch.nn as nn
-from torch import sigmoid
-
-from src.model import binarizing_activation
+from torch import Tensor, Size
 
 OUT_CHANNELS: int = 8
 
@@ -16,22 +14,18 @@ class ModelMode(Enum):
 
 class BinarizingNetwork:
     model_mode: ModelMode
-    scramble: bool
     scramble_distance: float
 
     def __init__(self, scramble_distance: float = 0.0):
         self.model_mode = ModelMode.train
-        self.scramble = True
         self.scramble_distance = scramble_distance
 
     def train_mode(self):
         self.model_mode = ModelMode.train
-        self.scramble = True
         self._set_child_modes()
 
     def eval_mode(self):
         self.model_mode = ModelMode.evaluation
-        self.scramble = False
         self._set_child_modes()
 
     def set_scramble_distance(self, scramble_distance: float):
@@ -74,13 +68,10 @@ class BinarizingCNN(nn.Module, BinarizingNetwork):
     def __init__(self):
         nn.Module.__init__(self)
         BinarizingNetwork.__init__(self)
-        # A single convolutional layer
         self.layer1 = nn.Conv2d(
             in_channels=1, out_channels=OUT_CHANNELS, kernel_size=5, stride=5, padding=1
         )
-        # Flatten layer
         self.flatten = nn.Flatten()
-        # A fully connected layer
         self.layer2 = BinarizingLinear(OUT_CHANNELS * 36, 77)
         self.layer3 = BinarizingLinear(77, 10)
 
@@ -98,7 +89,9 @@ class BinarizingCNN(nn.Module, BinarizingNetwork):
         return y
 
     def third_layer(self, x):
-        y = sigmoid(self.layer3(x))
+        y = binarizing_activation(
+            self.layer3(x), self.model_mode, self.scramble_distance
+        )
         return y
 
     def forward(self, x):
@@ -106,3 +99,29 @@ class BinarizingCNN(nn.Module, BinarizingNetwork):
         y = self.second_layer(y)
         y = self.third_layer(y)
         return y
+
+
+def scaled_sigmoid(tensor: Tensor) -> Tensor:
+    return 2 * torch.sigmoid(tensor) - 1
+
+
+def binarizing_activation(
+    tensor: Tensor, model_mode: ModelMode, scramble_distance: float
+) -> Tensor:
+    # Scramble the tensor if enabled
+    match model_mode:
+        case ModelMode.train:
+            tensor = tensor + (scramble_distance * random_plus_or_minus(tensor))
+            return scaled_sigmoid(tensor)
+        case ModelMode.evaluation:
+            torch.sign(tensor)
+
+
+def random_plus_or_minus(tensor: Tensor) -> Tensor:
+    size: Size = tensor.size()
+    return (torch.randint(0, 2, size).float() * 2 - 1).to(tensor.device)
+
+
+def random_plus_or_zero(tensor: Tensor) -> Tensor:
+    size: Size = tensor.size()
+    return (torch.randint(0, 1, size).float()).to(tensor.device)

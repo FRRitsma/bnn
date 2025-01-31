@@ -44,4 +44,4 @@ class OneHotEncode:
         self.num_classes = num_classes
 
     def __call__(self, label):
-        return torch.eye(self.num_classes)[label]
+        return torch.eye(self.num_classes)[label] * 2 - 1
