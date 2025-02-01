@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from functools import wraps
 
 import torch
 import torch.nn as nn
@@ -7,10 +8,20 @@ from torch import Tensor, Size
 OUT_CHANNELS: int = 8
 
 
+def apply_to_child_networks(method):
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        result = method(self, *args, **kwargs)
+        for child in self._child_networks:
+            getattr(child, method.__name__)(*args, **kwargs)
+        return result
+
+    return wrapper
+
+
 class ModelMode(Enum):
     train = auto()
     evaluation = auto()
-    binarized = auto()
 
 
 class BinarizingNetwork:
@@ -21,30 +32,36 @@ class BinarizingNetwork:
         self.model_mode = ModelMode.train
         self.scramble_distance = scramble_distance
 
+    @apply_to_child_networks
+    def binarize_weights(self):
+        if hasattr(self, "weight") and hasattr(self, "bias"):
+            self.weight: nn.Parameter = nn.Parameter(
+                binary_sign(self.weight.detach()), requires_grad=False
+            )
+            self.bias: nn.Parameter = nn.Parameter(
+                torch.floor(self.bias.detach()), requires_grad=False
+            )
+
+    @apply_to_child_networks
     def train_mode(self):
         self.model_mode = ModelMode.train
-        self._set_child_modes()
 
+    @apply_to_child_networks
     def eval_mode(self):
         self.model_mode = ModelMode.evaluation
-        self._set_child_modes()
 
+    @apply_to_child_networks
     def set_scramble_distance(self, scramble_distance: float):
         self.scramble_distance = scramble_distance
-        self._set_child_modes()
 
-    def _set_child_modes(self):
-        for attribute_name in dir(self):
-            if attribute_name.startswith("_"):
-                continue
-            attribute = getattr(self, attribute_name)
-            if isinstance(attribute, BinarizingNetwork):
-                match self.model_mode:
-                    case ModelMode.train:
-                        attribute.train_mode()
-                    case ModelMode.evaluation:
-                        attribute.eval_mode()
-                attribute.set_scramble_distance(self.scramble_distance)
+    @property
+    def _child_networks(self) -> list:
+        return [
+            getattr(self, attr)
+            for attr in dir(self)
+            if not attr.startswith("_")
+            and isinstance(getattr(self, attr, None), BinarizingNetwork)
+        ]
 
 
 class BinarizingLinear(nn.Linear, BinarizingNetwork):
@@ -106,6 +123,10 @@ def scaled_sigmoid(tensor: Tensor) -> Tensor:
     return 2 * torch.sigmoid(tensor) - 1
 
 
+def binary_sign(tensor: Tensor) -> Tensor:
+    return torch.where(tensor >= 0, torch.tensor(1), torch.tensor(-1))
+
+
 def binarizing_activation(
     tensor: Tensor, model_mode: ModelMode, scramble_distance: float
 ) -> Tensor:
@@ -116,9 +137,7 @@ def binarizing_activation(
                 tensor + (scramble_distance * random_plus_or_minus(tensor))
             )
         case ModelMode.evaluation:
-            return torch.sign(tensor)
-        case ModelMode.binarized:
-            return torch.where(tensor >= 0, torch.tensor(1), torch.tensor(-1))
+            return binary_sign(tensor)
 
 
 def random_plus_or_minus(tensor: Tensor) -> Tensor:
