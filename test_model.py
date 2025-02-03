@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from settings import settings
-from src.improved_model import BinarizingNetwork, ModelMode, BinarizingCNN
+from src.improved_model import BinarizingNetwork, ModelMode
+from src.mnist_model import BinarizingCNN
 from src.pruning import prune_model_layers
 from src.training import train_dataset
 from src.utils import device

@@ -4,6 +4,7 @@ from functools import wraps
 import torch
 import torch.nn as nn
 from torch import Tensor, Size
+from torch.nn.functional import conv2d
 
 OUT_CHANNELS: int = 8
 
@@ -86,41 +87,51 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
         return output
 
 
-class BinarizingCNN(nn.Module, BinarizingNetwork):
-    def __init__(self):
-        nn.Module.__init__(self)
-        BinarizingNetwork.__init__(self)
-        self.layer1 = nn.Conv2d(
-            in_channels=1, out_channels=OUT_CHANNELS, kernel_size=5, stride=5, padding=1
+class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        groups=1,
+        bias=True,
+        scramble_distance: float = 0,
+    ):
+        nn.Conv2d.__init__(
+            self,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            groups,
+            bias,
         )
-        self.flatten = nn.Flatten()
-        self.layer2 = BinarizingLinear(OUT_CHANNELS * 36, 77)
-        self.layer3 = BinarizingLinear(77, 10)
+        BinarizingNetwork.__init__(self, scramble_distance)
+        self.scale = nn.Parameter(torch.ones(1))
 
-    def float_to_binary_layer(self, x):
-        y = binarizing_activation(
-            self.layer1(x), self.model_mode, self.scramble_distance
+    @property
+    def transformed_weight(self):
+        return binarizing_activation(
+            self.weight, self.model_mode, self.scramble_distance
         )
-        y = self.flatten(y)
-        return y
-
-    def second_layer(self, x):
-        y = binarizing_activation(
-            self.layer2(x), self.model_mode, self.scramble_distance
-        )
-        return y
-
-    def third_layer(self, x):
-        y = binarizing_activation(
-            self.layer3(x), self.model_mode, self.scramble_distance
-        )
-        return y
 
     def forward(self, x):
-        y = self.float_to_binary_layer(x)
-        y = self.second_layer(y)
-        y = self.third_layer(y)
-        return y
+        output = conv2d(
+            x,
+            self.transformed_weight,
+            self.bias,
+            self.stride,
+            self.padding,
+            self.dilation,
+            self.groups,
+        )
+        output = output * self.scale
+        return output
 
 
 def scaled_sigmoid(tensor: Tensor) -> Tensor:

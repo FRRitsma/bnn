@@ -4,12 +4,14 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets
 
 from settings import settings
-from src.improved_model import BinarizingCNN
+from src.mnist_model import BinarizingCNN
 from src.utils import device
 from torchvision import transforms
 
 
-def get_accuracy(model: BinarizingCNN, dataloader: DataLoader) -> float:
+def get_accuracy(
+    model: BinarizingCNN, dataloader: DataLoader
+) -> float:  # Vulture: ignore
     scramble_distance: float = model.scramble_distance
     model.scramble_distance = 0.0
     with torch.no_grad():  # Disable gradient computation

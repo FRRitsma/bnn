@@ -25,4 +25,4 @@ repos:
         entry: vulture
         language: python
         types: [python]
-        args: [--min-confidence, "60"]
+        args: [--min-confidence, "65"]
