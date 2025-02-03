@@ -1,65 +1,26 @@
-import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch import Tensor, nn
 
-from src.improved_model import BinarizingCNN
-from src.utils import device
-
-# tolerance: float = float(1e-4)
-# percentage: float = float(0.999)
+from src.improved_model import BinarizingLinear
 
 
-def get_intermediate_outputs_as_numpy(
-    model: BinarizingCNN, data_loader: DataLoader
-) -> np.ndarray:
-    model.eval_mode()
-    all_outputs: list[np.ndarray] = []
-    with torch.no_grad():
-        for inputs, _ in data_loader:
-            inputs = inputs.to(device)
-            outputs = model.layer1(inputs)
-            all_outputs.append(outputs.cpu().numpy())
-    model.train_mode()
-    return np.concatenate(all_outputs, axis=0)
-
-
-def get_two_dimensional_histogram(data: np.ndarray) -> np.ndarray:
-    bin_edges: np.ndarray = np.linspace(0, 1, 50)
-    all_histograms: np.ndarray = np.concatenate(
-        [np.histogram(row, bin_edges)[0].reshape([1, -1]) for row in data.T], axis=0
+def prune_model_layers(
+    first_layer: BinarizingLinear,
+    second_layer: BinarizingLinear,
+    output_first_layer: Tensor,
+) -> None:
+    # Check if all values in each column are the same
+    same_values_per_column = (output_first_layer == output_first_layer[0]).all(dim=0)
+    # Get the indices of columns where all values are the same
+    columns_to_remove = torch.nonzero(same_values_per_column, as_tuple=True)[0]
+    columns_to_keep = [
+        i for i in range(output_first_layer.size(1)) if i not in columns_to_remove
+    ]
+    new_bias = (
+        output_first_layer[0, columns_to_remove]
+        @ second_layer.weight[:, columns_to_remove].t()
     )
-    return all_histograms
-
-
-separation_threshold: float = 0.95
-separation_proportion: float = 0.95
-
-
-def which_layers_are_separated(data: np.ndarray) -> np.ndarray:
-    data = data.copy()
-    data = abs(data - 0.5)
-    proportion = np.mean(data > (separation_threshold - 0.5), axis=0)
-    separated = proportion > separation_proportion
-    return separated
-
-
-def which_layers_dead_at_zero(data: np.ndarray) -> np.ndarray:
-    data = data.copy()
-    proportion = np.mean(data < (1 - separation_threshold), axis=0)
-    dead = proportion > separation_proportion
-    return dead
-
-
-def which_layers_dead_at_one(data: np.ndarray) -> np.ndarray:
-    data = data.copy()
-    proportion = np.mean(data > separation_threshold, axis=0)
-    dead = proportion > separation_proportion
-    return dead
-
-
-def is_any_layer_dead(data: np.ndarray) -> bool:
-    return any(which_layers_dead_at_zero(data)) or any(which_layers_dead_at_one(data))
-
-
-def is_all_layers_separated(data: np.ndarray) -> bool:
-    return all(which_layers_are_separated(data))
+    first_layer.weight = nn.Parameter(first_layer.weight[columns_to_keep, :])
+    first_layer.bias = nn.Parameter(first_layer.bias[columns_to_keep])
+    second_layer.weight = nn.Parameter(second_layer.weight[:, columns_to_keep])
+    second_layer.bias = nn.Parameter(new_bias + second_layer.bias)
