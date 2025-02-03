@@ -36,18 +36,22 @@ class BinarizingNetwork:
     def binarize_weights(self):
         if hasattr(self, "weight") and hasattr(self, "bias"):
             self.weight: nn.Parameter = nn.Parameter(
-                binary_sign(self.weight.detach()), requires_grad=False
+                binary_sign(self.weight.detach()).to(torch.float), requires_grad=False
             )
             self.bias: nn.Parameter = nn.Parameter(
-                torch.floor(self.bias.detach()), requires_grad=False
+                torch.floor(self.bias.detach()).to(torch.float), requires_grad=False
             )
 
     @apply_to_child_networks
     def train_mode(self):
+        if hasattr(self, "train"):
+            self.train()
         self.model_mode = ModelMode.train
 
     @apply_to_child_networks
     def eval_mode(self):
+        if hasattr(self, "eval"):
+            self.eval()
         self.model_mode = ModelMode.evaluation
 
     @apply_to_child_networks
@@ -137,7 +141,7 @@ def binarizing_activation(
                 tensor + (scramble_distance * random_plus_or_minus(tensor))
             )
         case ModelMode.evaluation:
-            return binary_sign(tensor)
+            return binary_sign(tensor).to(torch.float)
 
 
 def random_plus_or_minus(tensor: Tensor) -> Tensor:

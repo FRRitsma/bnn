@@ -1,4 +1,10 @@
-from src.improved_model import BinarizingNetwork, ModelMode
+import torch
+from torch.utils.data import DataLoader
+
+from settings import settings
+from src.improved_model import BinarizingNetwork, ModelMode, BinarizingCNN
+from src.training import train_dataset
+from src.utils import device
 
 
 def test_child_mode_transfer_model_mode():
@@ -32,3 +38,17 @@ def test_child_transfer_scramble_distance():
     parent.set_scramble_distance(1.0)
     assert parent.scramble_distance == 1.0
     assert child.scramble_distance == 1.0
+
+
+def test_binarizing_keeps_output_similarity():
+    model = BinarizingCNN()
+    model.to(device)
+    model.load_state_dict(torch.load(settings.models_path / "convnet_v2.pth"))
+    model.eval_mode()
+    train_dataloader = DataLoader(train_dataset, batch_size=int(1e3), shuffle=True)
+    train_data, _ = next(iter(train_dataloader))
+    train_data = train_data.to(device)
+    output = model(train_data)
+    model.binarize_weights()
+    binarized_output = model(train_data)
+    assert torch.all(output == binarized_output)

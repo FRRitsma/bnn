@@ -1,9 +1,12 @@
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
+from torchvision import datasets
 
+from settings import settings
 from src.improved_model import BinarizingCNN
 from src.utils import device
+from torchvision import transforms
 
 
 def get_accuracy(model: BinarizingCNN, dataloader: DataLoader) -> float:
@@ -45,3 +48,31 @@ class OneHotEncode:
 
     def __call__(self, label):
         return torch.eye(self.num_classes)[label] * 2 - 1
+
+
+num_classes: int = 10
+
+# Define the transformation to apply to the images
+transform = transforms.Compose(
+    [
+        transforms.ToTensor(),  # Convert images to PyTorch tensors
+    ]
+)
+
+full_train_dataset = datasets.MNIST(
+    root=settings.data_path,
+    train=True,
+    download=True,
+    transform=transform,
+    target_transform=OneHotEncode(num_classes),
+)
+train_size: int = int(0.8 * len(full_train_dataset))  # 80% for training
+val_size: int = len(full_train_dataset) - train_size  # 20% for validation
+test_dataset = datasets.MNIST(
+    root=settings.data_path,
+    train=False,
+    download=True,
+    transform=transform,
+    target_transform=OneHotEncode(num_classes),
+)
+train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
