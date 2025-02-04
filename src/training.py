@@ -4,13 +4,13 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets
 
 from settings import settings
-from src.mnist_model import BinarizingCNN
+from src.improved_model import BinarizingNetwork
 from src.utils import device
 from torchvision import transforms
 
 
 def get_accuracy(
-    model: BinarizingCNN, dataloader: DataLoader
+    model: BinarizingNetwork, dataloader: DataLoader
 ) -> float:  # Vulture: ignore
     scramble_distance: float = model.scramble_distance
     model.scramble_distance = 0.0
@@ -19,7 +19,7 @@ def get_accuracy(
         for inputs, labels in dataloader:
             # Move inputs and labels to the specified device
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs: torch.Tensor = model(inputs)
+            outputs: torch.Tensor = model(inputs)  # type: ignore
             comparison: torch.Tensor = torch.argmax(outputs, axis=1) == torch.argmax(
                 labels, axis=1
             )
