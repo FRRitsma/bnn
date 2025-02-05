@@ -8,6 +8,7 @@ from src.improved_model import (
     binarizing_activation,
     BinarizingConv2d,
     BinarizingLinear,
+    scaled_sigmoid,
 )
 from src.load_and_save import save_model
 from src.training import get_accuracy, OneHotEncode
@@ -95,25 +96,24 @@ class BinarizingCIFAR(nn.Module, BinarizingNetwork):
             )
         )
 
-        # Flatten the output for fully connected layers
         x = torch.flatten(x, start_dim=1)
 
         # Fully connected layers
         x = binarizing_activation(self.fc1(x), self.model_mode, self.scramble_distance)
         x = binarizing_activation(self.fc2(x), self.model_mode, self.scramble_distance)
-        x = self.fc3(x)  # No activation before CrossEntropyLoss
+        x = scaled_sigmoid(self.fc3(x))
 
         return x
 
 
 if __name__ == "__main__":
-    model = BinarizingCIFAR(scramble_distance=float(1e-4))
+    model = BinarizingCIFAR(scramble_distance=0.0)
     model.to(device)
 
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-2))
-    target_accuracy: float = 0.8
-    num_epochs: int = 500
+    optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-3))
+    target_accuracy: float = 0.7
+    num_epochs: int = 1000
     for epoch in range(num_epochs):
         model.train()
         for inputs, labels in train_loader:
@@ -125,10 +125,12 @@ if __name__ == "__main__":
             optimizer.step()
         accuracy: float = get_accuracy(model, val_loader)
         if accuracy > target_accuracy:
-            scramble_distance: float = min(5.0, model.scramble_distance * 1.05)
+            scramble_distance: float = max(
+                min(5.0, model.scramble_distance * 1.05), float(1e-3)
+            )
             model.set_scramble_distance(scramble_distance)
         print(
-            f"accuracy: {accuracy:.4f}, scramble_distance: {model.scramble_distance:.4f}"
+            f"accuracy: {accuracy:.4f}, scramble_distance: {model.scramble_distance:.6f}, epoch: {epoch+1}"
         )
         if epoch % 10 == 0:
-            save_model(model, "cifar_model.pth")
+            save_model(model, "cifar_model_v2")

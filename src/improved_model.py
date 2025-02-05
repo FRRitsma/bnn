@@ -3,7 +3,7 @@ from functools import wraps
 
 import torch
 import torch.nn as nn
-from torch import Tensor, Size
+from torch import Tensor
 from torch.nn.functional import conv2d
 
 OUT_CHANNELS: int = 8
@@ -155,11 +155,5 @@ def binarizing_activation(
             return binary_sign(tensor).to(torch.float)
 
 
-def random_plus_or_minus(tensor: Tensor) -> Tensor:
-    size: Size = tensor.size()
-    return (torch.randint(0, 2, size).float() * 2 - 1).to(tensor.device)
-
-
-def random_plus_or_zero(tensor: Tensor) -> Tensor:
-    size: Size = tensor.size()
-    return (torch.randint(0, 1, size).float()).to(tensor.device)
+def random_plus_or_minus(tensor: torch.Tensor) -> torch.Tensor:
+    return torch.bernoulli(torch.empty_like(tensor).fill_(0.5)) * 2 - 1
