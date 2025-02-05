@@ -9,7 +9,7 @@ from src.utils import device
 from torchvision import transforms
 
 
-def get_accuracy(
+def get_accuracy_one_hot_encoded(
     model: BinarizingNetwork, dataloader: DataLoader
 ) -> float:  # Vulture: ignore
     scramble_distance: float = model.scramble_distance
@@ -25,6 +25,26 @@ def get_accuracy(
             )
             all_correct += sum(comparison)
         accuracy: float = all_correct / len(dataloader.dataset)
+    model.scramble_distance = scramble_distance
+    return accuracy
+
+
+def get_accuracy(model: BinarizingNetwork, dataloader: DataLoader) -> float:
+    scramble_distance: float = model.scramble_distance
+    model.scramble_distance = 0.0
+    with torch.no_grad():  # Disable gradient computation
+        all_correct: int = 0
+        for inputs, labels in dataloader:
+            # Move inputs and labels to the specified device
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs: torch.Tensor = model(inputs)  # type: ignore
+
+            # Compare predicted class indices with actual labels
+            comparison: torch.Tensor = torch.argmax(outputs, axis=1) == labels
+            all_correct += comparison.sum().item()  # Convert to integer sum
+
+        accuracy: float = all_correct / len(dataloader.dataset)
+
     model.scramble_distance = scramble_distance
     return accuracy
 

@@ -8,10 +8,9 @@ from src.improved_model import (
     binarizing_activation,
     BinarizingConv2d,
     BinarizingLinear,
-    scaled_sigmoid,
 )
 from src.load_and_save import save_model
-from src.training import get_accuracy, OneHotEncode
+from src.training import get_accuracy
 
 import torchvision
 import torchvision.transforms as transforms
@@ -29,7 +28,7 @@ transform = transforms.Compose(
 n_output_classes: int = 10
 
 # Download and load CIFAR-10 dataset
-batch_size = 64  # Define batch size
+batch_size = 32  # Define batch size
 
 # Load the training dataset
 train_dataset = torchvision.datasets.CIFAR10(
@@ -37,7 +36,7 @@ train_dataset = torchvision.datasets.CIFAR10(
     train=True,
     download=True,
     transform=transform,
-    target_transform=OneHotEncode(n_output_classes),
+    # target_transform=OneHotEncode(n_output_classes),
 )
 
 # Split into training and validation sets (e.g., 80% train, 20% validation)
@@ -51,7 +50,7 @@ test_dataset = torchvision.datasets.CIFAR10(
     train=False,
     download=True,
     transform=transform,
-    target_transform=OneHotEncode(n_output_classes),
+    # target_transform=OneHotEncode(n_output_classes),
 )
 
 # Create DataLoaders
@@ -64,15 +63,12 @@ class BinarizingCIFAR(nn.Module, BinarizingNetwork):
     def __init__(self, scramble_distance: float):
         nn.Module.__init__(self)
         BinarizingNetwork.__init__(self, scramble_distance)
-
         # Convolutional layers
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = BinarizingConv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.conv3 = BinarizingConv2d(64, 128, kernel_size=3, stride=1, padding=1)
-
         # Pooling layer to reduce dimensionality
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
         # Fully connected layers
         self.fc1 = BinarizingLinear(128 * 4 * 4, 512)
         self.fc2 = BinarizingLinear(512, 256)
@@ -95,14 +91,11 @@ class BinarizingCIFAR(nn.Module, BinarizingNetwork):
                 self.conv3(x), self.model_mode, self.scramble_distance
             )
         )
-
         x = torch.flatten(x, start_dim=1)
-
         # Fully connected layers
         x = binarizing_activation(self.fc1(x), self.model_mode, self.scramble_distance)
         x = binarizing_activation(self.fc2(x), self.model_mode, self.scramble_distance)
-        x = scaled_sigmoid(self.fc3(x))
-
+        x = self.fc3(x)
         return x
 
 
@@ -110,9 +103,9 @@ if __name__ == "__main__":
     model = BinarizingCIFAR(scramble_distance=0.0)
     model.to(device)
 
-    criterion = nn.MSELoss()
+    criterion = nn.MultiMarginLoss(margin=0.5)
     optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-3))
-    target_accuracy: float = 0.7
+    target_accuracy: float = 0.75
     num_epochs: int = 1000
     for epoch in range(num_epochs):
         model.train()
@@ -130,7 +123,7 @@ if __name__ == "__main__":
             )
             model.set_scramble_distance(scramble_distance)
         print(
-            f"accuracy: {accuracy:.4f}, scramble_distance: {model.scramble_distance:.6f}, epoch: {epoch+1}"
+            f"accuracy: {accuracy:.4f}, scramble_distance: {model.scramble_distance:.5f}, epoch: {epoch+1}"
         )
         if epoch % 10 == 0:
-            save_model(model, "cifar_model_v2")
+            save_model(model, "cifar_model_v3")
