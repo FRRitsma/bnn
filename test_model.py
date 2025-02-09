@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 
 from settings import settings
 from src.improved_model import BinarizingNetwork, ModelMode
-from src.mnist_model import BinarizingCNN
+from src.mnist_model import MNIST_CNN
 from src.pruning import prune_model_layers
 from src.training import train_dataset
 from src.utils import device
@@ -16,17 +16,17 @@ def test_child_mode_transfer_model_mode():
     # Assign the child to the parent
     parent.child = child  # type: ignore
     # Initially, both should be in train mode
-    assert parent.model_mode == ModelMode.train
-    assert child.model_mode == ModelMode.train
+    assert parent.model_mode == ModelMode.scramble
+    assert child.model_mode == ModelMode.scramble
     # Switch parent to evaluation mode
-    parent.eval_mode()
+    parent.clean_mode()
     # Check if both parent and child are in evaluation mode
-    assert parent.model_mode == ModelMode.evaluation
-    assert child.model_mode == ModelMode.evaluation
+    assert parent.model_mode == ModelMode.clean
+    assert child.model_mode == ModelMode.clean
     # Switch parent back to train mode
-    parent.train_mode()
-    assert parent.model_mode == ModelMode.train
-    assert child.model_mode == ModelMode.train
+    parent.scramble_mode()
+    assert parent.model_mode == ModelMode.scramble
+    assert child.model_mode == ModelMode.scramble
 
 
 def test_child_transfer_scramble_distance():
@@ -43,10 +43,10 @@ def test_child_transfer_scramble_distance():
 
 
 def test_binarizing_keeps_output_similarity():
-    model = BinarizingCNN()
+    model = MNIST_CNN()
     model.to(device)
     model.load_state_dict(torch.load(settings.models_path / "convnet_v2.pth"))
-    model.eval_mode()
+    model.clean_mode()
     train_dataloader = DataLoader(train_dataset, batch_size=int(1e3), shuffle=True)
     train_data, _ = next(iter(train_dataloader))
     train_data = train_data.to(device)
@@ -57,10 +57,10 @@ def test_binarizing_keeps_output_similarity():
 
 
 def test_pruning_network_keeps_output_similar():
-    model = BinarizingCNN()
+    model = MNIST_CNN()
     model.to(device)
     model.load_state_dict(torch.load(settings.models_path / "convnet_v2.pth"))
-    model.eval_mode()
+    model.clean_mode()
     model.binarize_weights()
     train_dataloader = DataLoader(train_dataset, batch_size=int(5e4), shuffle=True)
     train_data, _ = next(iter(train_dataloader))
@@ -68,7 +68,7 @@ def test_pruning_network_keeps_output_similar():
     y_before_pruning = model(train_data)
     columns_layer2_before_pruning = model.layer2.weight.shape[0]
     rows_layer3_before_pruning = model.layer3.weight.shape[1]
-    x = model.second_layer(model.float_to_binary_layer(train_data))
+    x = model.second_layer(model.first_layer(train_data))
     prune_model_layers(model.layer2, model.layer3, x)
     assert model.layer2.weight.shape[0] < columns_layer2_before_pruning
     assert model.layer3.weight.shape[1] < rows_layer3_before_pruning
