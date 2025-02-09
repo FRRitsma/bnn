@@ -74,3 +74,6 @@ def test_pruning_network_keeps_output_similar():
     assert model.layer3.weight.shape[1] < rows_layer3_before_pruning
     y_after_pruning = model(train_data)
     assert torch.all(y_before_pruning == y_after_pruning)
+
+
+#
