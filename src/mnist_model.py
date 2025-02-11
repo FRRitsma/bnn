@@ -10,9 +10,9 @@ from src.improved_model import (
 
 
 class MNIST_CNN(nn.Module, BinarizingNetwork):
-    def __init__(self):
+    def __init__(self, scramble_distance: float):
         nn.Module.__init__(self)
-        BinarizingNetwork.__init__(self)
+        BinarizingNetwork.__init__(self, scramble_distance)
         self.layer1 = nn.Conv2d(
             in_channels=1, out_channels=OUT_CHANNELS, kernel_size=4, stride=2, padding=0
         )

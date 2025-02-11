@@ -29,17 +29,28 @@ def get_accuracy_one_hot_encoded(
     return accuracy
 
 
-def get_accuracy(model: BinarizingNetwork, dataloader: DataLoader) -> float:
-    with torch.no_grad():  # Disable gradient computation
-        all_correct: int = 0
-        for inputs, labels in dataloader:
-            # Move inputs and labels to the specified device
-            outputs: torch.Tensor = model(inputs)  # type: ignore
-            # Compare predicted class indices with actual labels
-            comparison: torch.Tensor = torch.argmax(outputs, axis=1) == labels
-            all_correct += comparison.sum().item()  # Convert to integer sum
+def get_accuracy(
+    model: torch.nn.Module,
+    inputs: torch.Tensor,
+    labels: torch.Tensor,
+    batch_size: int = 100,
+) -> float:
+    total_correct = 0
+    total_samples = labels.size(0)  # Get total number of samples
 
-        accuracy: float = all_correct / len(dataloader.dataset)
+    with torch.no_grad():  # Disable gradient computation
+        for i in range(0, total_samples, batch_size):
+            batch_inputs = inputs[i : i + batch_size]  # Slice batch
+            batch_labels = labels[i : i + batch_size]
+
+            outputs = model(batch_inputs)  # Get model predictions
+            predictions = torch.argmax(outputs, dim=1)  # Get predicted class indices
+
+            total_correct += (
+                (predictions == batch_labels).sum().item()
+            )  # Count correct predictions
+
+    accuracy = total_correct / total_samples  # Compute accuracy
     return accuracy
 
 
@@ -75,20 +86,23 @@ transform = transforms.Compose(
     ]
 )
 
-full_train_dataset = datasets.MNIST(
-    root=settings.data_path,
-    train=True,
-    download=True,
-    transform=transform,
-    target_transform=OneHotEncode(num_classes),
-)
-train_size: int = int(0.8 * len(full_train_dataset))  # 80% for training
-val_size: int = len(full_train_dataset) - train_size  # 20% for validation
-test_dataset = datasets.MNIST(
-    root=settings.data_path,
-    train=False,
-    download=True,
-    transform=transform,
-    target_transform=OneHotEncode(num_classes),
-)
-train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
+if __name__ == "__main__":
+    full_train_dataset = datasets.MNIST(
+        root=settings.data_path,
+        train=True,
+        download=True,
+        transform=transform,
+        target_transform=OneHotEncode(num_classes),
+    )
+    train_size: int = int(0.8 * len(full_train_dataset))  # 80% for training
+    val_size: int = len(full_train_dataset) - train_size  # 20% for validation
+    test_dataset = datasets.MNIST(
+        root=settings.data_path,
+        train=False,
+        download=True,
+        transform=transform,
+        target_transform=OneHotEncode(num_classes),
+    )
+    train_dataset, val_dataset = random_split(
+        full_train_dataset, [train_size, val_size]
+    )

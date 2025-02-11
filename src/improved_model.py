@@ -6,6 +6,10 @@ import torch.nn as nn
 from torch import Tensor, clamp
 from torch.nn.functional import conv2d
 
+torch.set_default_dtype(torch.float32)  # Set default dtype to float16
+torch.set_default_tensor_type(
+    torch.cuda.FloatTensor
+)  # Default to float16 on CUDAfrom torch import nn as nn
 OUT_CHANNELS: int = 8
 
 epsilon: float = float(1e-6)
@@ -180,10 +184,25 @@ def binarizing_activation(
     match model_mode:
         case ModelMode.scramble:
             return scaled_sigmoid(
-                tensor + random_plus_or_minus(tensor) * scramble_distance
+                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
             )
         case ModelMode.clean:
             return binarizing_activation(tensor, ModelMode.scramble, 0.0)
+        case ModelMode.binarized:
+            return binary_sign(tensor).to(torch.float)
+
+
+def binarizing_weight_activation(
+    tensor: Tensor, model_mode: ModelMode, scramble_distance: float
+) -> Tensor:
+    # Scramble the tensor if enabled
+    match model_mode:
+        case ModelMode.scramble:
+            return torch.clamp(
+                tensor + random_plus_or_minus(tensor) * scramble_distance, -1, 1
+            )
+        case ModelMode.clean:
+            return binarizing_weight_activation(tensor, ModelMode.scramble, 0.0)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 
