@@ -11,6 +11,7 @@ torch.set_default_tensor_type(
     torch.cuda.FloatTensor
 )  # Default to float16 on CUDAfrom torch import nn as nn
 OUT_CHANNELS: int = 8
+MAX_SCRAMBLE_DISTANCE: float = 2.0
 
 epsilon: float = float(1e-6)
 
@@ -94,7 +95,6 @@ class BinarizingNetwork:
             self.eval()
         self.model_mode = ModelMode.binarized
 
-    @apply_to_child_networks
     def set_scramble_distance(self, scramble_distance: float):
         self.scramble_distance = scramble_distance
 
@@ -106,6 +106,29 @@ class BinarizingNetwork:
             if not attr.startswith("_")
             and isinstance(getattr(self, attr, None), BinarizingNetwork)
         ]
+
+    def set_scramble_distance_v2(
+        self, add_scramble_distance: float, decay_rate: float
+    ) -> None:
+        assert decay_rate < 1
+        add_scramble_distance = self._inner_set_scramble_distance(
+            add_scramble_distance, decay_rate
+        )
+        for child_network in self._child_networks:
+            add_scramble_distance = child_network._inner_set_scramble_distance(
+                add_scramble_distance, decay_rate
+            )
+
+    def _inner_set_scramble_distance(
+        self, add_scramble_distance: float, decay_rate: float
+    ) -> float:
+        if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+            return add_scramble_distance
+        else:
+            self.scramble_distance = min(
+                self.scramble_distance + add_scramble_distance, MAX_SCRAMBLE_DISTANCE
+            )
+            return add_scramble_distance * decay_rate
 
 
 class BinarizingLinear(nn.Linear, BinarizingNetwork):

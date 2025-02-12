@@ -65,8 +65,10 @@ for epoch in range(num_epochs):
             train_data[batch_indices],
             train_labels[batch_indices],
         )
+
         if epoch == 0:
             break
+
         # Forward pass
         inputs, labels = inputs.to(device), labels.to(device)
         outputs = model(inputs)
@@ -86,13 +88,9 @@ for epoch in range(num_epochs):
         f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
     )
     if validation_accuracy > target_accuracy:
-        ds: float = 0.01
-        scramble_distance = model.layer2.scramble_distance + ds
-        model.scramble_distance = scramble_distance
-        model.layer2.set_scramble_distance(scramble_distance)
-        model.layer3.set_scramble_distance(model.layer2.scramble_distance * 0.5)
-        model.layer4.set_scramble_distance(model.layer3.scramble_distance * 0.5)
+        ds: float = 0.05
+        model.set_scramble_distance_v2(ds, 0.5)
         print(
-            f"Scramble distances: {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
+            f"Scramble distances: {model.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
             f" {model.layer4.scramble_distance:.2f}"
         )
