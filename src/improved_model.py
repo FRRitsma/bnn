@@ -3,7 +3,7 @@ from functools import wraps
 
 import torch
 import torch.nn as nn
-from torch import Tensor, clamp
+from torch import Tensor
 from torch.nn.functional import conv2d
 
 torch.set_default_dtype(torch.float32)  # Set default dtype to float16
@@ -33,6 +33,7 @@ class ModelMode(Enum):
 
 
 class BinarizingNetwork:
+    scale = nn.Parameter(torch.ones(1))
     model_mode: ModelMode
     scramble_distance: float
 
@@ -57,7 +58,7 @@ class BinarizingNetwork:
             return nn.Parameter(
                 binary_sign(self.weight.detach()).to(torch.float), requires_grad=False
             )
-        return binarizing_activation(
+        return binarizing_weight_activation(
             self.weight, self.model_mode, self.scramble_distance
         )
 
@@ -67,16 +68,13 @@ class BinarizingNetwork:
             return nn.Parameter(
                 torch.floor(self.bias.detach()).to(torch.float), requires_grad=False
             )
-        return binarizing_activation(
-            self.weight, self.model_mode, self.scramble_distance
-        )
+        return self.bias
 
     @apply_to_child_networks
-    def clamp_weights(self):
+    def clamp_parameters(self):
         if hasattr(self, "weight") and hasattr(self, "bias"):
-            self.weight: nn.Parameter = nn.Parameter(  # type: ignore
-                clamp(self.weight, -1 + epsilon, 1 - epsilon)
-            )
+            self.weight.data.clamp_(min=epsilon - 1, max=1 - epsilon)
+            self.scale.data.clamp_(min=1.0)
 
     @apply_to_child_networks
     def scramble_mode(self):
@@ -114,10 +112,9 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
     def __init__(self, in_features, out_features, scramble_distance: float = 0):
         nn.Linear.__init__(self, in_features, out_features)
         BinarizingNetwork.__init__(self, scramble_distance)
-        self.scale = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
-        output = torch.matmul(x, self.transformed_weight.t()) + self.bias
+        output = torch.matmul(x, self.transformed_weight.t()) + self.transformed_bias
         output = output * self.scale
         return output
 
@@ -147,19 +144,12 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             bias,
         )
         BinarizingNetwork.__init__(self, scramble_distance)
-        self.scale = nn.Parameter(torch.ones(1))
-
-    @property
-    def transformed_weight(self):
-        return binarizing_activation(
-            self.weight, self.model_mode, self.scramble_distance
-        )
 
     def forward(self, x):
         output = conv2d(
             x,
             self.transformed_weight,
-            self.bias,
+            self.transformed_bias,
             self.stride,
             self.padding,
             self.dilation,
@@ -180,7 +170,6 @@ def binary_sign(tensor: Tensor) -> Tensor:
 def binarizing_activation(
     tensor: Tensor, model_mode: ModelMode, scramble_distance: float
 ) -> Tensor:
-    # Scramble the tensor if enabled
     match model_mode:
         case ModelMode.scramble:
             return scaled_sigmoid(
@@ -195,7 +184,6 @@ def binarizing_activation(
 def binarizing_weight_activation(
     tensor: Tensor, model_mode: ModelMode, scramble_distance: float
 ) -> Tensor:
-    # Scramble the tensor if enabled
     match model_mode:
         case ModelMode.scramble:
             return torch.clamp(

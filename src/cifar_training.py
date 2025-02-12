@@ -45,7 +45,7 @@ transform = transforms.Compose(
 )
 
 # Download and load CIFAR-10 dataset
-batch_size = 64  # Define batch size
+batch_size = 256  # Define batch size
 
 # Load the training dataset
 cifar_train = torchvision.datasets.CIFAR10(
@@ -62,11 +62,6 @@ train_labels = torch.tensor(
     [cifar_train[i][1] for i in range(len(cifar_train))], device=device
 )
 
-# Wrap in a TensorDataset for DataLoader compatibility
-train_dataset = torch.utils.data.TensorDataset(train_data, train_labels)
-train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True
-)
 
 # Load the test dataset
 cifar_test = torchvision.datasets.CIFAR10(
@@ -80,11 +75,6 @@ test_labels = torch.tensor(
     [cifar_test[i][1] for i in range(len(cifar_test))], device=device
 )
 
-# Wrap in a TensorDataset for DataLoader compatibility
-test_dataset = torch.utils.data.TensorDataset(test_data, test_labels)
-test_loader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=batch_size, shuffle=True
-)
 
 if __name__ == "__main__":
     starting_scramble_distance: float = 0.01
@@ -98,10 +88,10 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-3))
     scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.1, patience=5, min_lr=float(1e-4)
+        optimizer, mode="min", factor=0.1, patience=5, min_lr=float(1e-6)
     )
 
-    target_accuracy: float = 0.8
+    target_accuracy: float = 0.7
     num_epochs: int = 1000
 
     for epoch in range(num_epochs):
@@ -111,7 +101,7 @@ if __name__ == "__main__":
         indices = torch.randperm(len(train_data), device=device)
         augmented_train_data = cifar10_transforms(train_data)
         for i in range(0, len(augmented_train_data), batch_size):
-            batch_indices = indices[i : i + batch_size]  # Select batch indices
+            batch_indices = indices[i : i + batch_size]
             inputs, labels = (
                 augmented_train_data[batch_indices],
                 train_labels[batch_indices],
@@ -122,8 +112,8 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             total_loss += float(loss.detach())
-        # model.clamp_weights()
 
+        # model.clamp_parameters()
         val_accuracy: float = get_accuracy(model, test_data, test_labels)
         train_accuracy: float = get_accuracy(model, train_data, train_labels)
 
@@ -145,7 +135,7 @@ if __name__ == "__main__":
         print(update_string)
         if train_accuracy > target_accuracy:
             scramble_distance: float = max(
-                min(5.0, model.scramble_distance + 0.01),
+                min(1.9, model.scramble_distance + 0.01),
                 starting_scramble_distance,
             )
             model.set_scramble_distance(scramble_distance)

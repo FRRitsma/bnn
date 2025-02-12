@@ -43,7 +43,7 @@ def test_child_transfer_scramble_distance():
 
 
 def test_binarizing_keeps_output_similarity():
-    model = MNIST_CNN(0.1)
+    model = MNIST_CNN()
     model.to(device)
     model.load_state_dict(torch.load(settings.models_path / "convnet_v2.pth"))
     model.clean_mode()
@@ -57,7 +57,7 @@ def test_binarizing_keeps_output_similarity():
 
 
 def test_pruning_network_keeps_output_similar():
-    model = MNIST_CNN(0.1)
+    model = MNIST_CNN()
     model.to(device)
     model.load_state_dict(torch.load(settings.models_path / "convnet_v2.pth"))
     model.clean_mode()
