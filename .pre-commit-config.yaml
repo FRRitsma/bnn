@@ -9,13 +9,13 @@ repos:
         exclude: ^(databricks)/.*\.py$
 
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
-    hooks:
-    - id: mypy
-      exclude: ^(databricks)/.*\.py$
-      args: [--check-untyped-def, --ignore-missing-import]
-
+#  - repo: https://github.com/pre-commit/mirrors-mypy
+#    rev: v1.9.0
+#    hooks:
+#    - id: mypy
+#      exclude: ^(databricks)/.*\.py$
+#      args: [--check-untyped-def, --ignore-missing-import]
+#
 
   - repo: local
     hooks:

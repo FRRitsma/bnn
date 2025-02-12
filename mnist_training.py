@@ -1,5 +1,7 @@
 from torchvision import transforms, datasets
 import torch.optim as optim
+
+from src.improved_model import MAX_SCRAMBLE_DISTANCE, ModelMode
 from src.mnist_model import MNIST_CNN
 
 from src.training import get_accuracy
@@ -45,7 +47,6 @@ test_labels = torch.tensor(
 
 # Instantiate the model
 model = MNIST_CNN().to(device)
-model.set_scramble_distance(0.0)
 # criterion = nn.CrossEntropyLoss()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=float(1e-3))
@@ -88,9 +89,18 @@ for epoch in range(num_epochs):
         f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
     )
     if validation_accuracy > target_accuracy:
-        ds: float = 0.05
-        model.set_scramble_distance_v2(ds, 0.5)
+        ds: float = 0.01
+        model.set_scramble_distance(ds, 0.5)
         print(
-            f"Scramble distances: {model.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
+            f"Scramble distances: {model.layer1.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
             f" {model.layer4.scramble_distance:.2f}"
         )
+
+    if model.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+        model.model_mode = ModelMode.binarized
+    if model.layer2.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+        model.layer2.model_mode = ModelMode.binarized
+    if model.layer3.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+        model.layer3.model_mode = ModelMode.binarized
+    if model.layer4.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+        model.layer4.model_mode = ModelMode.binarized
