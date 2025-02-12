@@ -28,10 +28,7 @@ cifar10_transforms = v2.Compose(
         v2.ColorJitter(
             brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1
         ),  # Strong color jitter
-        v2.RandomErasing(
-            p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)
-        ),  # Randomly erase patches
-        # v2.ToDtype(torch.float32, scale=True),  # Convert to float and scale to [0,1]
+        v2.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)),
         # v2.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]),  # CIFAR-10 mean/std
     ]
 )
@@ -41,6 +38,9 @@ cifar10_transforms = v2.Compose(
 transform = transforms.Compose(
     [
         transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]
+        ),
     ]
 )
 

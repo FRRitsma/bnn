@@ -196,7 +196,10 @@ def binarizing_weight_activation(
 
 
 def random_plus_or_minus(tensor: torch.Tensor) -> torch.Tensor:
-    return torch.bernoulli(torch.empty_like(tensor).fill_(0.5)) * 2 - 1
+    return (
+        torch.bernoulli(torch.empty_like(tensor, requires_grad=False).fill_(0.5)) * 2
+        - 1
+    )
 
 
 def random_one_or_zero(tensor: torch.Tensor) -> torch.Tensor:
