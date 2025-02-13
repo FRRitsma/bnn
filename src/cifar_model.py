@@ -79,19 +79,23 @@ class BinarizingCIFAR(nn.Module, BinarizingNetwork):
         # First conv layer (not binarized)
         x = self.conv1(x)
         x = self.bn1(x)  # Apply BatchNorm
+        x = self.conv1.activation(x)
         x = self.max_pool(x)
 
         # Binarized convolutional layers
         x = self.conv2(x)
         x = self.bn2(x)  # Apply BatchNorm
+        x = self.conv2.activation(x)
         x = self.max_pool(x)
 
         x = self.conv3(x)
         x = self.bn3(x)  # Apply BatchNorm
+        x = self.conv3.activation(x)
         x = self.max_pool(x)
 
         x = self.conv4(x)
         x = self.bn4(x)  # Apply BatchNorm
+        x = self.conv4.activation(x)
         x = self.max_pool(x)
 
         x = self.average_pool(x)

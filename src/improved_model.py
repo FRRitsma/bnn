@@ -81,12 +81,6 @@ class BinarizingNetwork:
             )
         return self.bias
 
-    # @apply_to_child_networks
-    # def clamp_parameters(self):
-    #     if hasattr(self, "weight") and hasattr(self, "bias"):
-    #         self.weight.data.clamp_(min=epsilon - 1, max=1 - epsilon)
-    #         self.scale.data.clamp_(min=1.0)
-
     @apply_to_child_networks
     def train_mode(self):
         if hasattr(self, "train"):
@@ -154,15 +148,15 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
         nn.Linear.__init__(self, in_features, out_features)
         BinarizingNetwork.__init__(self, binarize_parameters, binarize_output)
 
-    def forward(self, x):
-        output = torch.matmul(x, self.transformed_weight.t()) + self.transformed_bias
+    def activation(self, x):
         if self.binarize_parameters:
-            output = output * self.scale
+            x = x * self.scale
         if self.binarize_output:
-            output = binarizing_activation(
-                output, self.model_mode, self.scramble_distance
-            )
-        return output
+            x = binarizing_activation(x, self.model_mode, self.scramble_distance)
+        return x
+
+    def forward(self, x):
+        return torch.matmul(x, self.transformed_weight.t()) + self.transformed_bias
 
 
 class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
@@ -193,7 +187,7 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
         BinarizingNetwork.__init__(self, binarize_parameters, binarize_output)
 
     def forward(self, x):
-        output = conv2d(
+        x = conv2d(
             x,
             self.transformed_weight,
             self.transformed_bias,
@@ -202,17 +196,18 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             self.dilation,
             self.groups,
         )
+        return x
+
+    def activation(self, x):
         if self.binarize_parameters:
-            output = output * self.scale
+            x = x * self.scale
         if self.binarize_output:
-            output = binarizing_activation(
-                output, self.model_mode, self.scramble_distance
-            )
-        return output
+            x = binarizing_activation(x, self.model_mode, self.scramble_distance)
+        return x
 
 
 def scaled_sigmoid(tensor: Tensor) -> Tensor:
-    return torch.tanh(tensor)
+    return torch.sigmoid(tensor) * 2 - 1
 
 
 def binary_sign(tensor: Tensor) -> Tensor:
@@ -225,10 +220,10 @@ def binarizing_activation(
     match model_mode:
         case ModelMode.scramble:
             return scaled_sigmoid(
-                (tensor * 3) + random_plus_or_minus(tensor) * scramble_distance
+                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
             )
         case ModelMode.clean:
-            return scaled_sigmoid(tensor * 3)
+            return scaled_sigmoid(tensor * 4)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 
@@ -254,10 +249,10 @@ def binarizing_weight_activation(
     match model_mode:
         case ModelMode.scramble:
             return scaled_sigmoid(
-                (tensor * 3) + random_plus_or_minus(tensor) * scramble_distance
+                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
             )
         case ModelMode.clean:
-            return scaled_sigmoid(tensor * 3)
+            return scaled_sigmoid(tensor * 4)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 

@@ -37,11 +37,11 @@ class MNIST_CNN(nn.Module, BinarizingNetwork):
         )
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
+        x = self.layer1.activation(self.layer1(x))
+        x = self.layer2.activation(self.layer2(x))
         x = self.flatten(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x = self.layer3.activation(self.layer3(x))
+        x = self.layer4.activation(self.layer4(x))
         return x
 
 
