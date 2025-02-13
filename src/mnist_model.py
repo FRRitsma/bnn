@@ -3,7 +3,6 @@ from torch import nn as nn
 from src.improved_model import (
     BinarizingNetwork,
     BinarizingLinear,
-    binarizing_activation,
     BinarizingConv2d,
 )
 
@@ -17,8 +16,8 @@ class MNIST_CNN(nn.Module, BinarizingNetwork):
             kernel_size=4,
             stride=2,
             padding=0,
-            binarize_output=True,
             binarize_parameters=False,
+            binarize_output=True,
         )
         self.layer2 = BinarizingConv2d(
             in_channels=OUT_CHANNELS,
@@ -26,8 +25,8 @@ class MNIST_CNN(nn.Module, BinarizingNetwork):
             kernel_size=4,
             stride=2,
             padding=0,
-            binarize_output=True,
             binarize_parameters=True,
+            binarize_output=True,
         )
         self.flatten = nn.Flatten()
         self.layer3 = BinarizingLinear(
@@ -38,9 +37,7 @@ class MNIST_CNN(nn.Module, BinarizingNetwork):
         )
 
     def forward(self, x):
-        x = binarizing_activation(
-            self.layer1(x), self.model_mode, self.scramble_distance
-        )
+        x = self.layer1(x)
         x = self.layer2(x)
         x = self.flatten(x)
         x = self.layer3(x)

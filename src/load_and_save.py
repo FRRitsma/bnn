@@ -14,5 +14,5 @@ def save_model(model: nn.Module, name: str) -> None:
 
 def load_model(name: str) -> None:
     path: Path = settings.models_path / f"{name}.pth"
-    model = BinarizingNetwork()
+    model = BinarizingNetwork(True, True)
     model.load_state_dict(torch.load(path))  # type: ignore

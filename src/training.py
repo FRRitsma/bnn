@@ -33,7 +33,7 @@ def get_accuracy(
     model: torch.nn.Module,
     inputs: torch.Tensor,
     labels: torch.Tensor,
-    batch_size: int = 100,
+    batch_size: int = 512,
 ) -> float:
     total_correct = 0
     total_samples = labels.size(0)  # Get total number of samples

@@ -34,13 +34,13 @@ class BinarizingNetwork:
     model_mode: ModelMode = ModelMode.scramble
     binarize_parameters: bool
     binarize_output: bool
-    scale: Union[nn.Parameter, float]
+    scale: Union[nn.Parameter, None]
 
     def __init__(self, binarize_parameters: bool, binarize_output: bool):
-        if binarize_output:
+        if binarize_parameters:
             self.scale = nn.Parameter(torch.ones(1))
         else:
-            self.scale = 1.0
+            self.scale = None
 
         self.binarize_parameters = binarize_parameters
         self.binarize_output = binarize_output
@@ -81,21 +81,29 @@ class BinarizingNetwork:
             )
         return self.bias
 
-    @apply_to_child_networks
-    def clamp_parameters(self):
-        if hasattr(self, "weight") and hasattr(self, "bias"):
-            self.weight.data.clamp_(min=epsilon - 1, max=1 - epsilon)
-            self.scale.data.clamp_(min=1.0)
+    # @apply_to_child_networks
+    # def clamp_parameters(self):
+    #     if hasattr(self, "weight") and hasattr(self, "bias"):
+    #         self.weight.data.clamp_(min=epsilon - 1, max=1 - epsilon)
+    #         self.scale.data.clamp_(min=1.0)
 
     @apply_to_child_networks
-    def scramble_mode(self):
+    def train_mode(self):
         if hasattr(self, "train"):
-            self.train()
+            if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+                self.binary_mode()
+                return
+            else:
+                self.train()
         self.model_mode = ModelMode.scramble
 
     @apply_to_child_networks
     def clean_mode(self):
+        # Applies the forward pass without added noise
         if hasattr(self, "eval"):
+            if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+                self.binary_mode()
+                return
             self.eval()
         self.model_mode = ModelMode.clean
 
@@ -148,7 +156,8 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
 
     def forward(self, x):
         output = torch.matmul(x, self.transformed_weight.t()) + self.transformed_bias
-        output = output * self.scale
+        if self.binarize_parameters:
+            output = output * self.scale
         if self.binarize_output:
             output = binarizing_activation(
                 output, self.model_mode, self.scramble_distance
@@ -193,7 +202,8 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             self.dilation,
             self.groups,
         )
-        output = output * self.scale
+        if self.binarize_parameters:
+            output = output * self.scale
         if self.binarize_output:
             output = binarizing_activation(
                 output, self.model_mode, self.scramble_distance
@@ -202,7 +212,7 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
 
 
 def scaled_sigmoid(tensor: Tensor) -> Tensor:
-    return 2 * torch.sigmoid(tensor) - 1
+    return torch.tanh(tensor)
 
 
 def binary_sign(tensor: Tensor) -> Tensor:
@@ -215,12 +225,27 @@ def binarizing_activation(
     match model_mode:
         case ModelMode.scramble:
             return scaled_sigmoid(
-                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
+                (tensor * 3) + random_plus_or_minus(tensor) * scramble_distance
             )
         case ModelMode.clean:
-            return scaled_sigmoid(tensor * 4)
+            return scaled_sigmoid(tensor * 3)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
+
+
+#
+# def binarizing_weight_activation(
+#     tensor: Tensor, model_mode: ModelMode, scramble_distance: float
+# ) -> Tensor:
+#     match model_mode:
+#         case ModelMode.scramble:
+#             return torch.clamp(
+#                 tensor + random_plus_or_minus(tensor) * scramble_distance, -1, 1
+#             )
+#         case ModelMode.clean:
+#             return torch.clamp(tensor, -1, 1)
+#         case ModelMode.binarized:
+#             return binary_sign(tensor).to(torch.float)
 
 
 def binarizing_weight_activation(
@@ -228,11 +253,11 @@ def binarizing_weight_activation(
 ) -> Tensor:
     match model_mode:
         case ModelMode.scramble:
-            return torch.clamp(
-                tensor + random_plus_or_minus(tensor) * scramble_distance, -1, 1
+            return scaled_sigmoid(
+                (tensor * 3) + random_plus_or_minus(tensor) * scramble_distance
             )
         case ModelMode.clean:
-            return torch.clamp(tensor, -1, 1)
+            return scaled_sigmoid(tensor * 3)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 

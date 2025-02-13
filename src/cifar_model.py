@@ -4,59 +4,105 @@ from src.improved_model import (
     BinarizingNetwork,
     BinarizingConv2d,
     BinarizingLinear,
-    binarizing_activation,
 )
 
 
 class BinarizingCIFAR(nn.Module, BinarizingNetwork):
     def __init__(self):
         nn.Module.__init__(self)
-        BinarizingNetwork.__init__(self)
+        output_channels: int = 64
 
         # First layer (real-valued conv)
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding="same")
+        self.conv1 = BinarizingConv2d(
+            3,
+            1 * output_channels,
+            kernel_size=3,
+            stride=1,
+            padding="same",
+            binarize_parameters=False,
+            binarize_output=True,
+        )
+        self.bn1 = nn.BatchNorm2d(1 * output_channels)  # BatchNorm after conv1
 
         # Fully binarized convolutional layers
-        self.conv2 = BinarizingConv2d(64, 128, kernel_size=3, stride=1, padding="same")
-        self.conv3 = BinarizingConv2d(128, 256, kernel_size=3, stride=1, padding="same")
-        self.conv4 = BinarizingConv2d(256, 512, kernel_size=3, stride=1, padding="same")
+        self.conv2 = BinarizingConv2d(
+            1 * output_channels,
+            2 * output_channels,
+            kernel_size=3,
+            stride=1,
+            padding="same",
+            binarize_parameters=True,
+            binarize_output=True,
+        )
+        self.bn2 = nn.BatchNorm2d(2 * output_channels)  # BatchNorm after conv2
+
+        self.conv3 = BinarizingConv2d(
+            2 * output_channels,
+            4 * output_channels,
+            kernel_size=3,
+            stride=1,
+            padding="same",
+            binarize_parameters=True,
+            binarize_output=True,
+        )
+        self.bn3 = nn.BatchNorm2d(4 * output_channels)  # BatchNorm after conv3
+
+        self.conv4 = BinarizingConv2d(
+            4 * output_channels,
+            8 * output_channels,
+            kernel_size=3,
+            stride=1,
+            padding="same",
+            binarize_parameters=True,
+            binarize_output=True,
+        )
+        self.bn4 = nn.BatchNorm2d(8 * output_channels)  # BatchNorm after conv4
 
         self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.average_pool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         # Fully connected layers
-        self.fc1 = BinarizingLinear(512, 512)  # Flattened output from conv layers
-        self.fc3 = BinarizingLinear(512, N_OUTPUT_CLASSES)
+        self.fc1 = BinarizingLinear(
+            8 * output_channels,
+            4 * output_channels,
+            binarize_parameters=True,
+            binarize_output=True,
+        )
+        self.fc2 = BinarizingLinear(
+            4 * output_channels,
+            N_OUTPUT_CLASSES,
+            binarize_parameters=True,
+            binarize_output=False,
+        )
 
     def forward(self, x):
         # First conv layer (not binarized)
-        x = self.max_pool(
-            binarizing_activation(
-                self.conv1(x), self.model_mode, self.scramble_distance
-            )
-        )
+        x = self.conv1(x)
+        x = self.bn1(x)  # Apply BatchNorm
+        x = self.max_pool(x)
+
         # Binarized convolutional layers
-        x = self.max_pool(
-            binarizing_activation(
-                self.conv2(x), self.model_mode, self.scramble_distance
-            )
-        )
-        x = self.max_pool(
-            binarizing_activation(
-                self.conv3(x), self.model_mode, self.scramble_distance
-            )
-        )
-        x = self.max_pool(
-            binarizing_activation(
-                self.conv4(x), self.model_mode, self.scramble_distance
-            )
-        )
+        x = self.conv2(x)
+        x = self.bn2(x)  # Apply BatchNorm
+        x = self.max_pool(x)
+
+        x = self.conv3(x)
+        x = self.bn3(x)  # Apply BatchNorm
+        x = self.max_pool(x)
+
+        x = self.conv4(x)
+        x = self.bn4(x)  # Apply BatchNorm
+        x = self.max_pool(x)
+
         x = self.average_pool(x)
+
         # Flatten before fully connected layers
         x = torch.flatten(x, start_dim=1)
+
         # Fully connected layers (binarized)
-        x = binarizing_activation(self.fc1(x), self.model_mode, self.scramble_distance)
-        x = self.fc3(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
+
         return x
 
 

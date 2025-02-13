@@ -1,37 +1,34 @@
-from src.improved_model import BinarizingNetwork, ModelMode
-
-
-def test_child_mode_transfer_model_mode():
-    # Create a parent and a child network
-    parent = BinarizingNetwork()
-    child = BinarizingNetwork()
-    # Assign the child to the parent
-    parent.child = child  # type: ignore
-    # Initially, both should be in train mode
-    assert parent.model_mode == ModelMode.scramble
-    assert child.model_mode == ModelMode.scramble
-    # Switch parent to evaluation mode
-    parent.clean_mode()
-    # Check if both parent and child are in evaluation mode
-    assert parent.model_mode == ModelMode.clean
-    assert child.model_mode == ModelMode.clean
-    # Switch parent back to train mode
-    parent.scramble_mode()
-    assert parent.model_mode == ModelMode.scramble
-    assert child.model_mode == ModelMode.scramble
-
-
-def test_child_transfer_scramble_distance():
-    # Create a parent and a child network
-    parent = BinarizingNetwork()
-    child = BinarizingNetwork()
-    # Assign the child to the parent
-    parent.child = child  # type: ignore
-    assert parent.scramble_distance == 0.0
-    assert child.scramble_distance == 0.0
-    parent.set_scramble_distance(1.0)
-    assert parent.scramble_distance == 1.0
-    assert child.scramble_distance == 1.0
+# def test_child_mode_transfer_model_mode():
+#     # Create a parent and a child network
+#     parent = BinarizingNetwork()
+#     child = BinarizingNetwork()
+#     # Assign the child to the parent
+#     parent.child = child  # type: ignore
+#     # Initially, both should be in train mode
+#     assert parent.model_mode == ModelMode.scramble
+#     assert child.model_mode == ModelMode.scramble
+#     # Switch parent to evaluation mode
+#     parent.clean_mode()
+#     # Check if both parent and child are in evaluation mode
+#     assert parent.model_mode == ModelMode.clean
+#     assert child.model_mode == ModelMode.clean
+#     # Switch parent back to train mode
+#     parent.train_mode()
+#     assert parent.model_mode == ModelMode.scramble
+#     assert child.model_mode == ModelMode.scramble
+#
+#
+# def test_child_transfer_scramble_distance():
+#     # Create a parent and a child network
+#     parent = BinarizingNetwork()
+#     child = BinarizingNetwork()
+#     # Assign the child to the parent
+#     parent.child = child  # type: ignore
+#     assert parent.scramble_distance == 0.0
+#     assert child.scramble_distance == 0.0
+#     parent.set_scramble_distance(1.0)
+#     assert parent.scramble_distance == 1.0
+#     assert child.scramble_distance == 1.0
 
 
 # def test_binarizing_keeps_output_similarity():

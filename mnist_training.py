@@ -1,7 +1,6 @@
 from torchvision import transforms, datasets
 import torch.optim as optim
 
-from src.improved_model import MAX_SCRAMBLE_DISTANCE, ModelMode
 from src.mnist_model import MNIST_CNN
 
 from src.training import get_accuracy
@@ -59,7 +58,7 @@ maximum_scramble_distance: float = 1.90
 
 for epoch in range(num_epochs):
     indices = torch.randperm(len(train_data), device=device)
-    batch_size = 64
+    batch_size = 256
     for i in range(0, len(train_data), batch_size):
         batch_indices = indices[i : i + batch_size]  # Select batch indices
         inputs, labels = (
@@ -84,23 +83,18 @@ for epoch in range(num_epochs):
     validation_accuracy: float = get_accuracy(model, test_data, test_labels)
     model.binary_mode()
     bin_validation_accuracy: float = get_accuracy(model, train_data, train_labels)
-    model.scramble_mode()
+    model.train_mode()
     print(
         f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
     )
     if validation_accuracy > target_accuracy:
-        ds: float = 0.01
+        ds: float = 0.05
         model.set_scramble_distance(ds, 0.5)
         print(
             f"Scramble distances: {model.layer1.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
             f" {model.layer4.scramble_distance:.2f}"
         )
-
-    if model.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
-        model.model_mode = ModelMode.binarized
-    if model.layer2.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
-        model.layer2.model_mode = ModelMode.binarized
-    if model.layer3.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
-        model.layer3.model_mode = ModelMode.binarized
-    if model.layer4.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
-        model.layer4.model_mode = ModelMode.binarized
+    if epoch < 10:
+        assert model.layer1.training
+    if epoch > 100:
+        assert not model.layer1.training
