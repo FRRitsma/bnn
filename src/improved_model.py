@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.functional import conv2d
 
-MAX_SCRAMBLE_DISTANCE: float = 2.05
+MAX_SCRAMBLE_DISTANCE: float = 2.10
 epsilon: float = float(1e-6)
 
 
@@ -25,9 +25,6 @@ class ModelMode(Enum):
     scramble = auto()
     clean = auto()
     binarized = auto()
-
-
-class BinarizingTopLevel(nn.Module): ...
 
 
 class BinarizingNetwork:
@@ -83,7 +80,6 @@ class BinarizingNetwork:
             )
         return self.bias
 
-    @apply_to_child_networks
     def train_mode(self):
         if hasattr(self, "train"):
             if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
@@ -93,7 +89,6 @@ class BinarizingNetwork:
                 self.train()
         self.model_mode = ModelMode.scramble
 
-    @apply_to_child_networks
     def clean_mode(self):
         # Applies the forward pass without added noise
         if hasattr(self, "eval"):
@@ -103,31 +98,12 @@ class BinarizingNetwork:
             self.eval()
         self.model_mode = ModelMode.clean
 
-    @apply_to_child_networks
     def binary_mode(self):
         if hasattr(self, "eval"):
             self.eval()
         self.model_mode = ModelMode.binarized
 
-    @property
-    def _child_networks(self) -> list:
-        return [
-            getattr(self, attr)
-            for attr in dir(self)
-            if not attr.startswith("_")
-            and isinstance(getattr(self, attr, None), BinarizingNetwork)
-        ]
-
-    def set_scramble_distance(
-        self, add_scramble_distance: float, decay_rate: float
-    ) -> None:
-        assert decay_rate < 1
-        for child_network in self._child_networks:
-            add_scramble_distance = child_network._inner_set_scramble_distance(
-                add_scramble_distance, decay_rate
-            )
-
-    def _inner_set_scramble_distance(
+    def inner_set_scramble_distance(
         self, add_scramble_distance: float, decay_rate: float
     ) -> float:
         if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
@@ -197,8 +173,6 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             self.dilation,
             self.groups,
         )
-        if self.batch_norm:
-            x = self.batch_norm(x)
         return x
 
     def activation(self, x):

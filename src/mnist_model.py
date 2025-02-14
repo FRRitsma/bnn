@@ -1,13 +1,13 @@
 from torch import nn as nn
 
 from src.improved_model import (
-    BinarizingNetwork,
     BinarizingLinear,
     BinarizingConv2d,
 )
+from src.top_level import BinarizingTopLevel
 
 
-class MNIST_CNN(nn.Module, BinarizingNetwork):
+class MNIST_CNN(nn.Module, BinarizingTopLevel):
     def __init__(self):
         nn.Module.__init__(self)
         self.layer1 = BinarizingConv2d(

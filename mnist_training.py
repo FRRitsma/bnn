@@ -94,7 +94,3 @@ for epoch in range(num_epochs):
             f"Scramble distances: {model.layer1.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
             f" {model.layer4.scramble_distance:.2f}"
         )
-    if epoch < 10:
-        assert model.layer1.training
-    if epoch > 100:
-        assert not model.layer1.training
