@@ -1,6 +1,5 @@
 from enum import Enum, auto
 from functools import wraps
-from typing import Union
 
 import torch
 import torch.nn as nn
@@ -28,20 +27,19 @@ class ModelMode(Enum):
     binarized = auto()
 
 
+class BinarizingTopLevel(nn.Module): ...
+
+
 class BinarizingNetwork:
     # TODO: Settings for binarize_output True/False, binarize_weights True/False
     scramble_distance: float = 0.0
     model_mode: ModelMode = ModelMode.scramble
     binarize_parameters: bool
     binarize_output: bool
-    scale: Union[nn.Parameter, None]
+    scale: nn.Parameter
 
     def __init__(self, binarize_parameters: bool, binarize_output: bool):
-        if binarize_parameters:
-            self.scale = nn.Parameter(torch.ones(1))
-        else:
-            self.scale = None
-
+        self.scale = nn.Parameter(torch.ones(1))
         self.binarize_parameters = binarize_parameters
         self.binarize_output = binarize_output
 
@@ -49,7 +47,11 @@ class BinarizingNetwork:
     def binarize_weights(self):
         # TODO: Implement the effect of binarize_output, binarize_parameters
 
-        if hasattr(self, "weight") and hasattr(self, "bias"):
+        if (
+            hasattr(self, "weight")
+            and hasattr(self, "bias")
+            and self.binarize_parameters
+        ):
             self.weight: nn.Parameter = nn.Parameter(
                 binary_sign(self.weight.detach()).to(torch.float), requires_grad=False
             )
@@ -149,8 +151,7 @@ class BinarizingLinear(nn.Linear, BinarizingNetwork):
         BinarizingNetwork.__init__(self, binarize_parameters, binarize_output)
 
     def activation(self, x):
-        if self.binarize_parameters:
-            x = x * self.scale
+        x = x * self.scale
         if self.binarize_output:
             x = binarizing_activation(x, self.model_mode, self.scramble_distance)
         return x
@@ -196,11 +197,11 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             self.dilation,
             self.groups,
         )
+        if self.batch_norm:
+            x = self.batch_norm(x)
         return x
 
     def activation(self, x):
-        if self.binarize_parameters:
-            x = x * self.scale
         if self.binarize_output:
             x = binarizing_activation(x, self.model_mode, self.scramble_distance)
         return x

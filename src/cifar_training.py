@@ -14,16 +14,25 @@ import torchvision.transforms as transforms
 
 from src.utils import device
 
+# augmentation_transforms = v2.Compose(
+#     [
+#         v2.RandomHorizontalFlip(p=0.5),
+#         # v2.RandomResizedCrop(size=(32, 32), scale=(0.8, 1.0), antialias=True),
+#         # v2.RandomRotation(degrees=15),
+#         # v2.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+#         # v2.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+#         # v2.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)),
+#     ]
+# )
 augmentation_transforms = v2.Compose(
     [
         v2.RandomHorizontalFlip(p=0.5),
-        v2.RandomResizedCrop(size=(32, 32), scale=(0.8, 1.0), antialias=True),
-        v2.RandomRotation(degrees=15),
-        v2.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-        v2.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
-        v2.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)),
+        # v2.RandomCrop(size=(32, 32), padding=2, padding_mode="reflect"),
+        # v2.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
+        # v2.RandomAffine(degrees=1, translate=(0.025, 0.025), scale=(0.975, 1.025), fill=None)
     ]
 )
+
 
 transform = transforms.Compose(
     [
@@ -66,15 +75,13 @@ test_labels = torch.tensor(
 
 
 if __name__ == "__main__":
-    step_size_scramble: float = 0.01
-
     model = BinarizingCIFAR()
     model.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-3))
+    optimizer = torch.optim.Adam(model.parameters(), lr=float(1e-2))
     scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.1, patience=5, min_lr=float(1e-3)
+        optimizer, mode="min", factor=0.1, patience=5, min_lr=float(1e-2)
     )
 
     target_accuracy: float = 0.7
@@ -120,12 +127,13 @@ if __name__ == "__main__":
         update_string += f" bin acc: {binary_accuracy:.3f}"
         print(update_string)
         if val_accuracy > target_accuracy:
+            step_size_scramble: float = 0.01
             model.set_scramble_distance(step_size_scramble, 0.5)
             print(
-                f"{model.conv1.scramble_distance}, "
-                f"{model.conv2.scramble_distance}, "
-                f"{model.conv3.scramble_distance}, "
-                f"{model.conv4.scramble_distance}, "
-                f"{model.fc1.scramble_distance}, "
-                f"{model.fc2.scramble_distance},"
+                f"{model.conv1.scramble_distance:.2f}, "
+                f"{model.conv2.scramble_distance:.2f}, "
+                f"{model.conv3.scramble_distance:.2f}, "
+                f"{model.conv4.scramble_distance:.2f}, "
+                f"{model.fc1.scramble_distance:.2f}, "
+                f"{model.fc2.scramble_distance:.2f}, "
             )
