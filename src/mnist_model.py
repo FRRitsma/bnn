@@ -1,32 +1,32 @@
 from torch import nn as nn
 
 from src.improved_model import (
-    BinarizingLinear,
-    BinarizingConv2d,
+    BinarizingConv2dBatchNorm,
 )
+from src.linear_layer import BinarizingLinear
 from src.top_level import BinarizingTopLevel
+
+OUT_CHANNELS: int = 8
 
 
 class MNIST_CNN(nn.Module, BinarizingTopLevel):
     def __init__(self):
         nn.Module.__init__(self)
-        self.layer1 = BinarizingConv2d(
+        self.layer1 = BinarizingConv2dBatchNorm(
             in_channels=1,
             out_channels=OUT_CHANNELS,
             kernel_size=4,
             stride=2,
             padding=0,
             binarize_parameters=False,
-            binarize_output=True,
         )
-        self.layer2 = BinarizingConv2d(
+        self.layer2 = BinarizingConv2dBatchNorm(
             in_channels=OUT_CHANNELS,
             out_channels=OUT_CHANNELS,
             kernel_size=4,
             stride=2,
             padding=0,
             binarize_parameters=True,
-            binarize_output=True,
         )
         self.flatten = nn.Flatten()
         self.layer3 = BinarizingLinear(
@@ -43,6 +43,3 @@ class MNIST_CNN(nn.Module, BinarizingTopLevel):
         x = self.layer3.activation(self.layer3(x))
         x = self.layer4.activation(self.layer4(x))
         return x
-
-
-OUT_CHANNELS: int = 8

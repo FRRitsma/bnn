@@ -4,13 +4,13 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets
 
 from settings import settings
-from src.improved_model import BinarizingNetwork
+from src.improved_model import BinarizingBase
 from src.utils import device
 from torchvision import transforms
 
 
 def get_accuracy_one_hot_encoded(
-    model: BinarizingNetwork, dataloader: DataLoader
+    model: BinarizingBase, dataloader: DataLoader
 ) -> float:  # Vulture: ignore
     scramble_distance: float = model.scramble_distance
     model.scramble_distance = 0.0

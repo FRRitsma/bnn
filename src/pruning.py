@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 
-from src.improved_model import BinarizingLinear
+from src.linear_layer import BinarizingLinear
 
 
 def prune_model_layers(  # Vulture: ignore

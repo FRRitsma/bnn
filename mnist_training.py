@@ -46,19 +46,19 @@ test_labels = torch.tensor(
 
 # Instantiate the model
 model = MNIST_CNN().to(device)
-# criterion = nn.CrossEntropyLoss()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=float(1e-3))
+optimizer = optim.Adam(model.parameters(), lr=float(1e-2))
 
 # Training loop
 num_epochs: int = 1000
-target_accuracy: float = 0.95
+target_accuracy: float = 0.96
 maximum_scramble_distance: float = 1.90
 
+model.set_scramble_distance(0.1, 0.5)
 
 for epoch in range(num_epochs):
     indices = torch.randperm(len(train_data), device=device)
-    batch_size = 256
+    batch_size = 128
     for i in range(0, len(train_data), batch_size):
         batch_indices = indices[i : i + batch_size]  # Select batch indices
         inputs, labels = (
@@ -80,9 +80,10 @@ for epoch in range(num_epochs):
         optimizer.step()
 
     # Assess progress:
+    model.clean_mode()
     validation_accuracy: float = get_accuracy(model, test_data, test_labels)
     model.binary_mode()
-    bin_validation_accuracy: float = get_accuracy(model, train_data, train_labels)
+    bin_validation_accuracy: float = get_accuracy(model, test_data, test_labels)
     model.train_mode()
     print(
         f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
@@ -91,6 +92,9 @@ for epoch in range(num_epochs):
         ds: float = 0.05
         model.set_scramble_distance(ds, 0.5)
         print(
-            f"Scramble distances: {model.layer1.scramble_distance:.2f}, {model.layer2.scramble_distance:.2f}, {model.layer3.scramble_distance:.2f},"
-            f" {model.layer4.scramble_distance:.2f}"
+            f"Scramble distances: "
+            f"{model.layer1.scramble_distance:.2f}, "
+            f"{model.layer2.scramble_distance:.2f}, "
+            f"{model.layer3.scramble_distance:.2f}, "
+            f"{model.layer4.scramble_distance:.2f}"
         )

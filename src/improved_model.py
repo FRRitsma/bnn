@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.functional import conv2d
 
-MAX_SCRAMBLE_DISTANCE: float = 2.10
+MAX_SCRAMBLE_DISTANCE: float = 2.1
 epsilon: float = float(1e-6)
 
 
@@ -27,23 +27,41 @@ class ModelMode(Enum):
     binarized = auto()
 
 
-class BinarizingNetwork:
+class BinarizingBase:
     # TODO: Settings for binarize_output True/False, binarize_weights True/False
     scramble_distance: float = 0.0
+    _finished_training: bool = False
     model_mode: ModelMode = ModelMode.scramble
     binarize_parameters: bool
     binarize_output: bool
-    scale: nn.Parameter
 
     def __init__(self, binarize_parameters: bool, binarize_output: bool):
-        self.scale = nn.Parameter(torch.ones(1))
         self.binarize_parameters = binarize_parameters
         self.binarize_output = binarize_output
 
+    @property
+    def is_dead(self) -> bool:
+        return self.scramble_distance >= MAX_SCRAMBLE_DISTANCE
+
+    @property
+    def _child_networks(self) -> list[nn.Module]:
+        return [
+            getattr(self, attr)
+            for attr in dir(self)
+            if not attr.startswith("_")
+            and issubclass(getattr(self, attr, int), nn.Module)
+        ]
+
     @apply_to_child_networks
+    def eval(self):
+        self.eval()
+
+    @apply_to_child_networks
+    def train(self):
+        self.train()
+
     def binarize_weights(self):
         # TODO: Implement the effect of binarize_output, binarize_parameters
-
         if (
             hasattr(self, "weight")
             and hasattr(self, "bias")
@@ -82,7 +100,7 @@ class BinarizingNetwork:
 
     def train_mode(self):
         if hasattr(self, "train"):
-            if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+            if self._finished_training:
                 self.binary_mode()
                 return
             else:
@@ -92,10 +110,10 @@ class BinarizingNetwork:
     def clean_mode(self):
         # Applies the forward pass without added noise
         if hasattr(self, "eval"):
-            if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+            self.eval()
+            if self._finished_training:
                 self.binary_mode()
                 return
-            self.eval()
         self.model_mode = ModelMode.clean
 
     def binary_mode(self):
@@ -107,6 +125,8 @@ class BinarizingNetwork:
         self, add_scramble_distance: float, decay_rate: float
     ) -> float:
         if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
+            self.binary_mode()
+            self._finished_training = True
             return add_scramble_distance
         else:
             self.scramble_distance = min(
@@ -115,28 +135,64 @@ class BinarizingNetwork:
             return add_scramble_distance * decay_rate
 
 
-class BinarizingLinear(nn.Linear, BinarizingNetwork):
+class BinarizingConv2dBatchNorm(nn.Conv2d, BinarizingBase):
+    batch_norm: nn.BatchNorm2d
+
     def __init__(
         self,
-        in_features: int,
-        out_features: int,
+        in_channels,
+        out_channels,
+        kernel_size,
         binarize_parameters: bool,
-        binarize_output: bool,
+        stride=1,
+        padding=0,
+        dilation=1,
+        groups=1,
     ):
-        nn.Linear.__init__(self, in_features, out_features)
-        BinarizingNetwork.__init__(self, binarize_parameters, binarize_output)
+        nn.Conv2d.__init__(
+            self,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            groups,
+            bias=False,
+        )
+        BinarizingBase.__init__(self, binarize_parameters, binarize_output=True)
+        self.batch_norm = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x):
+        x = conv2d(
+            x,
+            self.transformed_weight,
+            None,
+            self.stride,
+            self.padding,
+            self.dilation,
+            self.groups,
+        )
+        x = self.batch_norm(x)
+        return x
 
     def activation(self, x):
-        x = x * self.scale
         if self.binarize_output:
             x = binarizing_activation(x, self.model_mode, self.scramble_distance)
         return x
 
-    def forward(self, x):
-        return torch.matmul(x, self.transformed_weight.t()) + self.transformed_bias
+    def eval(self):
+        super().eval()
+        self.batch_norm.weight.requires_grad = False
+        self.batch_norm.bias.requires_grad = False
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        self.batch_norm.weight.requires_grad = False
+        self.batch_norm.bias.requires_grad = False
 
 
-class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
+class BinarizingConv2d(nn.Conv2d, BinarizingBase):
     def __init__(
         self,
         in_channels,
@@ -161,7 +217,7 @@ class BinarizingConv2d(nn.Conv2d, BinarizingNetwork):
             groups,
             bias,
         )
-        BinarizingNetwork.__init__(self, binarize_parameters, binarize_output)
+        BinarizingBase.__init__(self, binarize_parameters, binarize_output)
 
     def forward(self, x):
         x = conv2d(
@@ -201,21 +257,6 @@ def binarizing_activation(
             return scaled_sigmoid(tensor * 4)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
-
-
-#
-# def binarizing_weight_activation(
-#     tensor: Tensor, model_mode: ModelMode, scramble_distance: float
-# ) -> Tensor:
-#     match model_mode:
-#         case ModelMode.scramble:
-#             return torch.clamp(
-#                 tensor + random_plus_or_minus(tensor) * scramble_distance, -1, 1
-#             )
-#         case ModelMode.clean:
-#             return torch.clamp(tensor, -1, 1)
-#         case ModelMode.binarized:
-#             return binary_sign(tensor).to(torch.float)
 
 
 def binarizing_weight_activation(
