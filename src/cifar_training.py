@@ -74,24 +74,25 @@ test_labels = torch.tensor(
 
 
 if __name__ == "__main__":
-    decay_rate = 0.5
+    decay_rate: float = 1.0
+    step_size_scramble: float = 0.01
 
     model = BinarizingCIFAR()
     model.to(device)
-    model.set_scramble_distance(0.25, decay_rate)
+    model.set_scramble_distance(step_size_scramble, decay_rate)
     starting_lr: float = float(1e-2)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=starting_lr)
     patience: int = 10
     scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.1, patience=patience, min_lr=float(1e-4)
+        optimizer, mode="min", factor=0.5, patience=patience, min_lr=float(1e-6)
     )
 
     target_accuracy: float = 0.8
-    num_epochs: int = 1000
+    num_epochs: int = 2000
 
     for epoch in range(num_epochs):
-        model.train()
+        model.train_mode()
         total_loss: float = 0.0
 
         indices = torch.randperm(len(train_data), device=device)
@@ -111,7 +112,7 @@ if __name__ == "__main__":
             total_loss += float(loss.detach())
 
         # Test data performance:
-        model.eval()
+        model.clean_mode()
         val_accuracy: float = get_accuracy(model, test_data, test_labels)
         train_accuracy: float = get_accuracy(model, train_data, train_labels)
         model.binary_mode()
@@ -136,18 +137,18 @@ if __name__ == "__main__":
         if train_accuracy > target_accuracy:
             # Update scheduler:
             scheduler = ReduceLROnPlateau(
-                optimizer, mode="min", factor=0.1, patience=patience, min_lr=float(1e-5)
+                optimizer, mode="min", factor=0.5, patience=patience, min_lr=float(1e-6)
             )
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = starting_lr / 10
+            # for param_group in optimizer.param_groups:
+            #     param_group["lr"] = starting_lr
             # Update scramble:
-            step_size_scramble: float = 0.25
             model.set_scramble_distance(step_size_scramble, decay_rate)
             print(
                 f"{model.conv1.scramble_distance:.2f}, "
                 f"{model.conv2.scramble_distance:.2f}, "
                 f"{model.conv3.scramble_distance:.2f}, "
-                f"{model.conv4.scramble_distance:.2f}, "
+                # f"{model.conv4.scramble_distance:.2f}, "
+                # f"{model.conv5.scramble_distance:.2f}, "
                 f"{model.fc1.scramble_distance:.2f}, "
                 f"{model.fc2.scramble_distance:.2f}, "
             )
