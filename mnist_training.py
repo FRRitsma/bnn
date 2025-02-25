@@ -54,7 +54,7 @@ num_epochs: int = 1000
 target_accuracy: float = 0.96
 maximum_scramble_distance: float = 1.90
 
-model.set_scramble_distance(0.1, 0.5)
+model.set_scramble_distance(0.1, 1)
 
 for epoch in range(num_epochs):
     indices = torch.randperm(len(train_data), device=device)
@@ -90,7 +90,7 @@ for epoch in range(num_epochs):
     )
     if validation_accuracy > target_accuracy:
         ds: float = 0.05
-        model.set_scramble_distance(ds, 0.5)
+        model.set_scramble_distance(ds, 1)
         print(
             f"Scramble distances: "
             f"{model.layer1.scramble_distance:.2f}, "

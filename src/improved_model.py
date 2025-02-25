@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.functional import conv2d
 
-MAX_SCRAMBLE_DISTANCE: float = 2.1
+MAX_SCRAMBLE_DISTANCE: float = 6
 epsilon: float = float(1e-6)
 
 
@@ -99,33 +99,31 @@ class BinarizingBase:
         return self.bias
 
     def train_mode(self):
-        if hasattr(self, "train"):
-            if self._finished_training:
-                self.binary_mode()
-                return
-            else:
-                self.train()
+        # if hasattr(self, "train"):
+        #     if self._finished_training:
+        #         self.binary_mode()
+        #         return
+        #     else:
+        self.train()
         self.model_mode = ModelMode.scramble
 
     def clean_mode(self):
         # Applies the forward pass without added noise
-        if hasattr(self, "eval"):
-            self.eval()
-            if self._finished_training:
-                self.binary_mode()
-                return
+        # if hasattr(self, "eval"):
+        #     if self._finished_training:
+        #         self.binary_mode()
+        #         return
+        self.eval()
         self.model_mode = ModelMode.clean
 
     def binary_mode(self):
-        if hasattr(self, "eval"):
-            self.eval()
+        self.eval()
         self.model_mode = ModelMode.binarized
 
     def inner_set_scramble_distance(
         self, add_scramble_distance: float, decay_rate: float
     ) -> float:
         if self.scramble_distance >= MAX_SCRAMBLE_DISTANCE:
-            self.binary_mode()
             self._finished_training = True
             return add_scramble_distance
         else:
@@ -250,11 +248,9 @@ def binarizing_activation(
 ) -> Tensor:
     match model_mode:
         case ModelMode.scramble:
-            return scaled_sigmoid(
-                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
-            )
+            return torch.tanh(tensor + random_plus_or_minus(tensor) * scramble_distance)
         case ModelMode.clean:
-            return scaled_sigmoid(tensor * 4)
+            return torch.tanh(tensor)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 
@@ -264,11 +260,9 @@ def binarizing_weight_activation(
 ) -> Tensor:
     match model_mode:
         case ModelMode.scramble:
-            return scaled_sigmoid(
-                (tensor * 4) + random_plus_or_minus(tensor) * scramble_distance
-            )
+            return torch.tanh(tensor + random_plus_or_minus(tensor) * scramble_distance)
         case ModelMode.clean:
-            return scaled_sigmoid(tensor * 4)
+            return torch.tanh(tensor)
         case ModelMode.binarized:
             return binary_sign(tensor).to(torch.float)
 

@@ -43,7 +43,7 @@ transform = transforms.Compose(
 )
 
 # Download and load CIFAR-10 dataset
-batch_size: int = 512
+batch_size: int = 128
 
 # Load the training dataset
 cifar_train = torchvision.datasets.CIFAR10(
@@ -74,8 +74,8 @@ test_labels = torch.tensor(
 
 
 if __name__ == "__main__":
-    decay_rate: float = 1.0
-    step_size_scramble: float = 0.01
+    decay_rate: float = 0.5
+    step_size_scramble: float = 0.05
 
     model = BinarizingCIFAR()
     model.to(device)
