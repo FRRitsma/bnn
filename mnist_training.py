@@ -1,6 +1,7 @@
 from torchvision import transforms, datasets
 import torch.optim as optim
 
+from src.load_and_save import save_model
 from src.mnist_model import MNIST_CNN
 
 from src.training import get_accuracy
@@ -47,54 +48,56 @@ test_labels = torch.tensor(
 # Instantiate the model
 model = MNIST_CNN().to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=float(1e-2))
+optimizer = optim.Adam(model.parameters(), lr=float(1e-3))
 
 # Training loop
 num_epochs: int = 1000
-target_accuracy: float = 0.96
+target_accuracy: float = 0.97
 maximum_scramble_distance: float = 1.90
 
-model.set_scramble_distance(0.1, 1)
+model.set_scramble_distance(0.001, 1)
 
-for epoch in range(num_epochs):
-    indices = torch.randperm(len(train_data), device=device)
-    batch_size = 128
-    for i in range(0, len(train_data), batch_size):
-        batch_indices = indices[i : i + batch_size]  # Select batch indices
-        inputs, labels = (
-            train_data[batch_indices],
-            train_labels[batch_indices],
-        )
+if __name__ == "__main__":
+    for epoch in range(num_epochs):
+        indices = torch.randperm(len(train_data), device=device)
+        batch_size = 128
+        for i in range(0, len(train_data), batch_size):
+            batch_indices = indices[i : i + batch_size]  # Select batch indices
+            inputs, labels = (
+                train_data[batch_indices],
+                train_labels[batch_indices],
+            )
 
-        if epoch == 0:
-            break
+            if epoch == 0:
+                break
 
-        # Forward pass
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
+            # Forward pass
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
 
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    # Assess progress:
-    model.clean_mode()
-    validation_accuracy: float = get_accuracy(model, test_data, test_labels)
-    model.binary_mode()
-    bin_validation_accuracy: float = get_accuracy(model, test_data, test_labels)
-    model.train_mode()
-    print(
-        f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
-    )
-    if validation_accuracy > target_accuracy:
-        ds: float = 0.05
-        model.set_scramble_distance(ds, 1)
+        # Assess progress:
+        model.clean_mode()
+        validation_accuracy: float = get_accuracy(model, test_data, test_labels)
+        model.binary_mode()
+        bin_validation_accuracy: float = get_accuracy(model, test_data, test_labels)
+        model.train_mode()
         print(
-            f"Scramble distances: "
-            f"{model.layer1.scramble_distance:.2f}, "
-            f"{model.layer2.scramble_distance:.2f}, "
-            f"{model.layer3.scramble_distance:.2f}, "
-            f"{model.layer4.scramble_distance:.2f}"
+            f"Epoch [{epoch+1}/{num_epochs}], Accuracy: {validation_accuracy:.4f}, Bin Accuracy: {bin_validation_accuracy:.4f}"
         )
+        if validation_accuracy > target_accuracy:
+            ds: float = 0.001
+            model.set_scramble_distance(ds, 1)
+            print(
+                f"Scramble distances: "
+                f"{model.layer1.scramble_distance:.2f}, "
+                # f"{model.layer2.scramble_distance:.2f}, "
+                f"{model.layer3.scramble_distance:.2f}, "
+                f"{model.layer4.scramble_distance:.2f}"
+            )
+            save_model(model, "mnist_model")

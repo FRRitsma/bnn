@@ -1,7 +1,7 @@
 import torch
 from torch import nn as nn
 
-from src.improved_model import BinarizingBase, binarizing_activation, ModelMode
+from src.improved_model import BinarizingBase, binarizing_activation
 
 
 class BinarizingLinear(nn.Linear, BinarizingBase):
@@ -58,18 +58,6 @@ class BinarizingLinearBatchNorm(nn.Linear, BinarizingBase):
         return x
 
     def forward(self, x):
-        if self.model_mode == ModelMode.scramble:
-            batch_size = x.shape[0]
-            with torch.no_grad():
-                noise = (
-                    torch.empty(batch_size, *self.weight.shape, device=x.device)
-                    .uniform_(-1, 1)
-                    .sign()
-                    * self.scramble_distance
-                )
-            matrix_adjusted = torch.tanh(self.weight + noise)
-            x = torch.matmul(x, matrix_adjusted.T)
-        else:
-            torch.matmul(x, self.transformed_weight.t())
+        x = torch.matmul(x, self.transformed_weight.t())
         x = self.batch_norm(x)
         return x

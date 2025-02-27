@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.functional import conv2d
 
-MAX_SCRAMBLE_DISTANCE: float = 6
+MAX_SCRAMBLE_DISTANCE: float = 2
 epsilon: float = float(1e-6)
 
 
@@ -77,7 +77,7 @@ class BinarizingBase:
     @property
     def transformed_weight(self):
         if not self.binarize_parameters:
-            return self.weight
+            return torch.tanh(self.weight)
 
         if self.model_mode == ModelMode.binarized:
             return nn.Parameter(
